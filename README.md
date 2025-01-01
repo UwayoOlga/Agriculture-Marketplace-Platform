@@ -53,7 +53,6 @@ By integrating technology, this platform will address market access, pricing, an
 
 4. **Tech Stack**: Based on local infrastructure, **Python with Django** could be a solid choice for rapid development, with **MTN Mobile Money** integration for payments. **PostgreSQL** would provide a stable database for user and product data.
 
----
 
 ### Phase 2: Backend Development
 **Goal**: Set up the server, database, and implement core functionality.
