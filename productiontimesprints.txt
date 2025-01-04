@@ -1,0 +1,64 @@
+UbuhinziLink Project Time Plan
+
+Week 1:
+
+Day 1 - Planning and Requirements Gathering
+- Research the problem: Challenges faced by farmers in Rwanda.
+- Define the project scope, features, and user stories.
+- Choose the tech stack: Python with Django, MTN Mobile Money, PostgreSQL.
+
+Day 2 - Define Features and Create User Stories
+- List features: User authentication, product listings, payment gateway integration, GPS, and forum.
+- Write user stories.
+
+Day 3 - Backend Development (Part 1)
+- Set up backend (Flask/Django).
+- Configure environment, dependencies, and Git repository.
+- Design database schema (users, products, orders, reviews).
+
+Day 4 - Backend Development (Part 2)
+- Implement user authentication (JWT).
+- Create product listing functionality.
+
+Day 5 - Backend Development (Part 3)
+- Integrate mobile payments (MTN Mobile Money, Airtel Money).
+- Implement transaction system.
+
+Day 6 - GPS Integration
+- Integrate Google Maps API or Mapbox for location tracking and logistics.
+
+Day 7 - Start Frontend Development
+- Set up React project.
+- Design components for product listings, registration, and user profiles.
+
+Week 2:
+
+Day 8 - Frontend Development (Part 1)
+- Build frontend forms for user registration, product listings, and payment page.
+
+Day 9 - Frontend Development (Part 2)
+- Connect frontend to backend (Axios for HTTP requests).
+
+Day 10 - Mobile Responsiveness
+- Ensure the platform is responsive for mobile users.
+
+Day 11 - Community Forum (Part 1)
+- Design and implement forum functionality for farmers.
+- Allow posting questions and answers.
+
+Day 12 - Community Forum (Part 2)
+- Implement upvoting, categorization, and backend for forum posts.
+
+Day 13 - Testing and QA (Part 1)
+- Write unit tests for APIs and components.
+- Start integration testing.
+
+Day 14 - Testing and QA (Part 2)
+- Conduct user testing with farmers and buyers in Rwanda.
+- Make improvements based on feedback.
+
+Day 15 - Deployment and Maintenance
+- Deploy backend on Heroku or AWS, frontend on Netlify.
+- Set up monitoring tools (Sentry, etc.).
+- Launch and promote the platform.
+
