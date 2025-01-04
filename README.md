@@ -1,6 +1,6 @@
  
 
-# <u>UbuhinziLink Isoko</u>
+# <u>UbuhinziLink </u>
 
 <u>Problem:</u> Many farmers in Africa, including those in Rwanda, struggle with access to markets, fair pricing, and supply chain inefficiencies. 
 The agricultural sector is crucial to Rwanda's economy, but farmers often face the following issues:
