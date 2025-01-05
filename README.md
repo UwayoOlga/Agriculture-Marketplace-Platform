@@ -1,6 +1,10 @@
  
 
+<<<<<<< HEAD
 # <u>UbuhinziLink Isoko</u>
+=======
+# <u>UbuhinziLink </u>
+>>>>>>> e6762fb9bf42824f9f20958326a013e11d98bf9c
 
 <u>Problem:</u> Many farmers in Africa, including those in Rwanda, struggle with access to markets, fair pricing, and supply chain inefficiencies. 
 The agricultural sector is crucial to Rwanda's economy, but farmers often face the following issues:
@@ -81,8 +85,12 @@ By integrating technology, this platform will address market access, pricing, an
 6. **GPS Integration**: 
    - Leverage **Google Maps API** or **Mapbox** for integrating geolocation into the platform, helping with both farmer location tracking and logistics.
 
+<<<<<<< HEAD
 ---
 
+=======
+ 
+>>>>>>> e6762fb9bf42824f9f20958326a013e11d98bf9c
 ### Phase 3: Frontend Development
 **Goal**: Implement the user interface using **React** or **Vue.js**.
 
@@ -101,8 +109,12 @@ By integrating technology, this platform will address market access, pricing, an
 
 4. **Mobile responsiveness**: 
    - Ensure that the platform is fully responsive, especially for mobile users (which is key in Rwanda, where many people access the internet through mobile phones).
+<<<<<<< HEAD
 
 ---
+=======
+ 
+>>>>>>> e6762fb9bf42824f9f20958326a013e11d98bf9c
 
 ### Phase 4: Community Forum
 **Goal**: Implement a space for farmers to exchange knowledge.
@@ -118,8 +130,12 @@ By integrating technology, this platform will address market access, pricing, an
 
 3. **Frontend for forum**: 
    - Design a clean, user-friendly interface where farmers can easily navigate and participate in discussions.
+<<<<<<< HEAD
 
 ---
+=======
+ 
+>>>>>>> e6762fb9bf42824f9f20958326a013e11d98bf9c
 
 ### Phase 5: Testing and Quality Assurance
 **Goal**: Ensure the platform works as expected across all components.
@@ -134,8 +150,12 @@ By integrating technology, this platform will address market access, pricing, an
 
 3. **User testing**: 
    - Test the platform with a group of farmers and buyers in Rwanda to gather feedback and make improvements.
+<<<<<<< HEAD
 
 ---
+=======
+ 
+>>>>>>> e6762fb9bf42824f9f20958326a013e11d98bf9c
 
 ### Phase 6: Deployment and Maintenance
 **Goal**: Deploy the platform and ensure ongoing operation.
