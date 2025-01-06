@@ -21,8 +21,8 @@
 - General Users
 
 ## Tech Stack
-- Backend: Python with Django
-- Database: PostgreSQL
+- Backend: Python with Django/ Java (Spring Boot)
+- Database: PL/SQL
 - Payment Gateway: MTN Mobile Money, Airtel Money
 - Frontend: React.js
 - Other Tools: Google Maps API, Bootstrap, GitHub
