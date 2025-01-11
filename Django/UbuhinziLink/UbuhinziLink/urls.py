@@ -15,8 +15,28 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from UbuhinziLinkApp.views import (
+    ProductListView,
+    ProductCreateView,
+    ProductDetailView,
+    ProductUpdateView,
+    ProductDeleteView,
+    ProductSearchView,
+)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),  # Admin site
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # JWT token obtain
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # JWT token refresh
+    
+    # Product-related endpoints
+    path('api/products/', ProductListView.as_view(), name='product_list'),  # List all products
+    path('api/products/create/', ProductCreateView.as_view(), name='product_create'),  # Create a product
+    path('api/products/<int:pk>/', ProductDetailView.as_view(), name='product_detail'),  # Product detail by ID
+    path('api/products/<int:pk>/update/', ProductUpdateView.as_view(), name='product_update'),  # Update product
+    path('api/products/<int:pk>/delete/', ProductDeleteView.as_view(), name='product_delete'),  # Delete product
+    path('api/products/search/', ProductSearchView.as_view(), name='product_search'),  # Search products
 ]
+
