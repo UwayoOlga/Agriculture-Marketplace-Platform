@@ -1,5 +1,5 @@
 """
-URL configuration for UbuhinziLink project.
+URL configuration for E-Farmer Connect project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.1/topics/http/urls/
@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from UbuhinziLinkApp.views import (
+from EFarmerConnectApp.views import (
     ProductListView,
     ProductCreateView,
     ProductDetailView,

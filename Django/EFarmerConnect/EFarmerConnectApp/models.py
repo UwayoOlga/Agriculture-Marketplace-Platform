@@ -56,23 +56,53 @@ class ProductImage(models.Model):
     is_primary = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+class Cart(models.Model):
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'BUYER'})
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def get_total(self):
+        return sum(item.get_subtotal() for item in self.items.all())
+    
+    def __str__(self):
+        return f"Cart for {self.buyer.username}"
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    
+    def get_subtotal(self):
+        return self.product.price * self.quantity
+    
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name}"
+
 class Order(models.Model):
     STATUS_CHOICES = (
         ('PENDING', 'Pending'),
-        ('CONFIRMED', 'Confirmed'),
-        ('PAID', 'Paid'),
-        ('SHIPPING', 'Shipping'),
+        ('PENDING_CONFIRMATION', 'Pending Farmer Confirmation'),
+        ('REJECTED', 'Rejected by Farmer'),
+        ('CONFIRMED', 'Confirmed by Farmer'),
+        ('AWAITING_PAYMENT', 'Awaiting Payment'),
+        ('PAYMENT_PROCESSING', 'Payment Processing'),
+        ('PAID', 'Payment Completed'),
+        ('PREPARING', 'Preparing for Shipping'),
+        ('SHIPPING', 'In Transit'),
         ('DELIVERED', 'Delivered'),
         ('CANCELLED', 'Cancelled'),
     )
     
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', limit_choices_to={'user_type': 'BUYER'})
     order_date = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING')
     shipping_address = models.TextField()
     delivery_notes = models.TextField(blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-
+    estimated_delivery_date = models.DateField(null=True, blank=True)
+    actual_delivery_date = models.DateField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+    
     def __str__(self):
         return f"Order #{self.id} by {self.buyer.username}"
 
@@ -88,19 +118,70 @@ class OrderItem(models.Model):
 class Payment(models.Model):
     PAYMENT_STATUS_CHOICES = (
         ('PENDING', 'Pending'),
+        ('PROCESSING', 'Processing'),
         ('COMPLETED', 'Completed'),
         ('FAILED', 'Failed'),
+        ('REFUNDED', 'Refunded'),
+    )
+    
+    PAYMENT_METHOD_CHOICES = (
+        ('MTN_MOMO', 'MTN Mobile Money'),
+        ('AIRTEL_MONEY', 'Airtel Money'),
+        ('TIGO_CASH', 'Tigo Cash'),
+        ('BANK_TRANSFER', 'Bank Transfer'),
     )
     
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_method = models.CharField(max_length=50)  # e.g., MTN Mobile Money, Airtel Money
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES)
     transaction_id = models.CharField(max_length=100, unique=True)
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES)
     payment_date = models.DateTimeField(auto_now_add=True)
+    payment_proof = models.ImageField(upload_to='payment_proofs/', null=True, blank=True)
+    phone_number = models.CharField(max_length=15, help_text='Mobile money phone number')
+    failure_reason = models.TextField(blank=True, null=True)
+    refund_reason = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Payment {self.transaction_id} for Order #{self.order.id}"
+
+class DeliveryLogistics(models.Model):
+    STATUS_CHOICES = (
+        ('ASSIGNED', 'Assigned to Driver'),
+        ('PICKUP', 'Out for Pickup'),
+        ('COLLECTED', 'Collected from Farmer'),
+        ('INTRANSIT', 'In Transit'),
+        ('DELIVERING', 'Out for Delivery'),
+        ('DELIVERED', 'Delivered'),
+        ('FAILED', 'Delivery Failed'),
+    )
+    
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='logistics')
+    driver_name = models.CharField(max_length=100)
+    driver_phone = models.CharField(max_length=15)
+    vehicle_info = models.CharField(max_length=100)
+    pickup_location = models.TextField()
+    delivery_location = models.TextField()
+    current_location = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    pickup_time = models.DateTimeField(null=True, blank=True)
+    delivery_time = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    tracking_number = models.CharField(max_length=50, unique=True)
+    
+    def __str__(self):
+        return f"Delivery #{self.tracking_number} for Order #{self.order.id}"
+
+class SMSNotification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=15)
+    message = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20)
+    delivery_status = models.CharField(max_length=20, null=True, blank=True)
+    
+    def __str__(self):
+        return f"SMS to {self.phone_number} at {self.sent_at}"
 
 class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
