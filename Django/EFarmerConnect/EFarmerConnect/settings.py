@@ -51,7 +51,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'UbuhinziLink.urls'
+ROOT_URLCONF = 'EFarmerConnect.urls'
 
 TEMPLATES = [
     {
@@ -69,19 +69,18 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'UbuhinziLink.wsgi.application'
+WSGI_APPLICATION = 'EFarmerConnect.wsgi.application'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+# Temporarily use SQLite locally so we can generate migrations without
+# requiring an active PostgreSQL connection. After migrations are created
+# you can switch this back to PostgreSQL and run `migrate` against Postgres.
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ubuhinzilink_db ', 
-        'USER': 'postgres',
-        'PASSWORD': 'admin123',
-        'HOST': 'localhost', 
-        'PORT': '5432', 
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -121,6 +120,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Custom user model
+AUTH_USER_MODEL = 'EFarmerConnectApp.User'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

@@ -10,12 +10,12 @@ class User(AbstractUser):
         ('ADMIN', 'Administrator'),
     )
     
-    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
-    phone_number = models.CharField(max_length=15)
-    address = models.TextField()
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, null=True)
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
     gps_coordinates = models.CharField(max_length=50, blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-    date_joined = models.DateTimeField(auto_now_add=True)
+    date_joined = models.DateTimeField(auto_now_add=True, null=True)
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
@@ -32,19 +32,19 @@ class Category(models.Model):
         verbose_name_plural = "Categories"
 
 class Product(models.Model):
-    farmer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'FARMER'})
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.IntegerField()
-    unit = models.CharField(max_length=20)  # e.g., kg, tons, pieces
+    farmer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'FARMER'}, null=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    name = models.CharField(max_length=255, null=True)
+    description = models.TextField(null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    stock = models.IntegerField(null=True)
+    unit = models.CharField(max_length=20, null=True)  # e.g., kg, tons, pieces
     harvest_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
-    farm_location = models.CharField(max_length=255)
+    farm_location = models.CharField(max_length=255, null=True, blank=True)
     farm_gps_coordinates = models.CharField(max_length=50, blank=True, null=True)
     is_organic = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -93,12 +93,12 @@ class Order(models.Model):
         ('CANCELLED', 'Cancelled'),
     )
     
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', limit_choices_to={'user_type': 'BUYER'})
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', limit_choices_to={'user_type': 'BUYER'}, null=True)
     order_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING')
-    shipping_address = models.TextField()
+    shipping_address = models.TextField(null=True, blank=True)
     delivery_notes = models.TextField(blank=True, null=True)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     estimated_delivery_date = models.DateField(null=True, blank=True)
     actual_delivery_date = models.DateField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True, null=True)
