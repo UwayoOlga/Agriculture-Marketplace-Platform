@@ -10,12 +10,12 @@ class User(AbstractUser):
         ('ADMIN', 'Administrator'),
     )
     
-    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, null=True)
-    phone_number = models.CharField(max_length=15, null=True, blank=True)
-    address = models.TextField(null=True, blank=True)
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+    phone_number = models.CharField(max_length=15)
+    address = models.TextField()
     gps_coordinates = models.CharField(max_length=50, blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-    date_joined = models.DateTimeField(auto_now_add=True, null=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
