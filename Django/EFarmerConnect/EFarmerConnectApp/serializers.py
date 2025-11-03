@@ -1,7 +1,150 @@
 from rest_framework import serializers
-from .models import Product  # Replace with your model
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .models import (
+    Product, User, Category, ProductImage, Cart, CartItem,
+    Order, OrderItem, Payment, Review, ForumPost, Comment,
+    WeatherAlert, AgronomicAdvice, CropCalendar, MarketPrice,
+    DeliveryLogistics, Notification, SMSNotification
+)
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = '__all__'  # Adjust fields as necessary
+        fields = '__all__'
+
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'password', 'first_name', 'last_name', 
+                 'phone_number', 'address', 'user_type', 'is_verified')
+        read_only_fields = ('is_verified',)
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims
+        token['username'] = user.username
+        token['email'] = user.email
+        token['user_type'] = user.user_type
+        return token
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'phone_number', 'address', 'gps_coordinates')
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = '__all__'
+
+class CartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cart
+        fields = '__all__'
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product_details = ProductSerializer(source='product', read_only=True)
+    
+    class Meta:
+        model = CartItem
+        fields = '__all__'
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = '__all__'
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_details = ProductSerializer(source='product', read_only=True)
+    
+    class Meta:
+        model = OrderItem
+        fields = '__all__'
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user_details = UserSerializer(source='user', read_only=True)
+    
+    class Meta:
+        model = Review
+        fields = '__all__'
+
+class ForumPostSerializer(serializers.ModelSerializer):
+    author_details = UserSerializer(source='author', read_only=True)
+    
+    class Meta:
+        model = ForumPost
+        fields = '__all__'
+
+class CommentSerializer(serializers.ModelSerializer):
+    author_details = UserSerializer(source='author', read_only=True)
+    
+    class Meta:
+        model = Comment
+        fields = '__all__'
+
+class WeatherAlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeatherAlert
+        fields = '__all__'
+
+class AgronomicAdviceSerializer(serializers.ModelSerializer):
+    author_details = UserSerializer(source='author', read_only=True)
+    
+    class Meta:
+        model = AgronomicAdvice
+        fields = '__all__'
+
+class CropCalendarSerializer(serializers.ModelSerializer):
+    farmer_details = UserSerializer(source='farmer', read_only=True)
+    crop_details = CategorySerializer(source='crop', read_only=True)
+    
+    class Meta:
+        model = CropCalendar
+        fields = '__all__'
+
+class MarketPriceSerializer(serializers.ModelSerializer):
+    category_details = CategorySerializer(source='product_category', read_only=True)
+    
+    class Meta:
+        model = MarketPrice
+        fields = '__all__'
+
+class DeliveryLogisticsSerializer(serializers.ModelSerializer):
+    order_details = OrderSerializer(source='order', read_only=True)
+    
+    class Meta:
+        model = DeliveryLogistics
+        fields = '__all__'
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
+
+class SMSNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SMSNotification
+        fields = '__all__'
