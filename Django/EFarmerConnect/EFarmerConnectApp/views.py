@@ -23,6 +23,7 @@ from .serializers import (
     DeliveryLogisticsSerializer, NotificationSerializer,
     SMSNotificationSerializer
 )
+from .payment import get_payment_provider, PaymentException
 
 # List all products
 class ProductListView(APIView):
@@ -157,11 +158,55 @@ class PaymentView(APIView):
 
     def post(self, request, order_id):
         order = get_object_or_404(Order, id=order_id, buyer=request.user)
-        serializer = PaymentSerializer(data={**request.data, 'order': order.id})
+
+        # Determine amount
+        amount = request.data.get('amount') or order.total_amount or 0
+        try:
+            amount = float(amount)
+        except Exception:
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_number = request.data.get('phone_number') or getattr(request.user, 'phone_number', None)
+        payment_method = request.data.get('payment_method') or 'MTN_MOMO'
+
+        provider = get_payment_provider()
+        try:
+            result = provider.charge(amount=amount, phone_number=phone_number, payment_method=payment_method)
+        except PaymentException as e:
+            # Record failed payment
+            data = {
+                'order': order.id,
+                'amount': amount,
+                'payment_method': payment_method,
+                'transaction_id': f'failed_{order.id}_{timezone.now().timestamp()}',
+                'status': 'FAILED',
+                'phone_number': phone_number,
+                'failure_reason': str(e),
+            }
+            serializer = PaymentSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+            return Response({'error': 'Payment provider error', 'details': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        # Success path
+        transaction_id = result.get('transaction_id') or f'tx_{order.id}_{timezone.now().timestamp()}'
+        status_str = 'COMPLETED' if result.get('status') in ('success', 'completed') else 'FAILED'
+
+        data = {
+            'order': order.id,
+            'amount': amount,
+            'payment_method': payment_method,
+            'transaction_id': transaction_id,
+            'status': status_str,
+            'phone_number': phone_number,
+        }
+
+        serializer = PaymentSerializer(data=data)
         if serializer.is_valid():
             payment = serializer.save()
-            order.status = 'paid'
-            order.save()
+            if status_str == 'COMPLETED':
+                order.status = 'PAID'
+                order.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

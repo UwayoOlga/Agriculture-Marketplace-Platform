@@ -30,6 +30,20 @@ from EFarmerConnectApp.views import (
     CropCalendarView, MarketPriceView, DeliveryLogisticsView,
     NotificationView, SMSNotificationView
 )
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
+
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="E-Farmer Connect API",
+        default_version='v1',
+        description="API documentation for E-Farmer Connect",
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
 
 # Create a router for ViewSets
 router = DefaultRouter()
@@ -79,6 +93,12 @@ urlpatterns = [
     path('api/notifications/', NotificationView.as_view(), name='notifications'),
     path('api/notifications/sms/', SMSNotificationView.as_view(), name='sms_notifications'),
 ] + router.urls
+
+# Swagger/OpenAPI
+urlpatterns += [
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+]
 
 # Serve media files in development
 if settings.DEBUG:
