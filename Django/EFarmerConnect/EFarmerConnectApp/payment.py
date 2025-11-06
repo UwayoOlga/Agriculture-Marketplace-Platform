@@ -3,7 +3,6 @@ from django.conf import settings
 
 class PaymentException(Exception):
     pass
-
 class BasePaymentProvider:
     def charge(self, amount, phone_number, **kwargs):
         raise NotImplementedError()
