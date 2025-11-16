@@ -86,9 +86,12 @@ class ProductCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # Only farmers can create products
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can create products.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(farmer=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
@@ -109,6 +112,9 @@ class ProductUpdateView(APIView):
     def put(self, request, pk):
         try:
             product = Product.objects.get(pk=pk)
+            # Only the owning farmer (or admin) can update
+            if product.farmer != request.user and not request.user.is_staff:
+                return Response({'error': 'You are not allowed to update this product.'}, status=status.HTTP_403_FORBIDDEN)
             serializer = ProductSerializer(product, data=request.data)
             if serializer.is_valid():
                 serializer.save()
@@ -124,6 +130,9 @@ class ProductDeleteView(APIView):
     def delete(self, request, pk):
         try:
             product = Product.objects.get(pk=pk)
+            # Only the owning farmer (or admin) can delete
+            if product.farmer != request.user and not request.user.is_staff:
+                return Response({'error': 'You are not allowed to delete this product.'}, status=status.HTTP_403_FORBIDDEN)
             product.delete()
             return Response({'message': 'Product deleted successfully'}, status=204)
         except Product.DoesNotExist:
@@ -148,6 +157,8 @@ class CartView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if getattr(request.user, 'user_type', None) != 'BUYER':
+            return Response({'error': 'Only buyers have a shopping cart.'}, status=status.HTTP_403_FORBIDDEN)
         cart, created = Cart.objects.get_or_create(buyer=request.user)
         serializer = CartSerializer(cart)
         return Response(serializer.data)
@@ -156,6 +167,8 @@ class CartItemView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        if getattr(request.user, 'user_type', None) != 'BUYER':
+            return Response({'error': 'Only buyers can add items to a cart.'}, status=status.HTTP_403_FORBIDDEN)
         cart, created = Cart.objects.get_or_create(buyer=request.user)
         serializer = CartItemSerializer(data={**request.data, 'cart': cart.id})
         if serializer.is_valid():
@@ -173,32 +186,55 @@ class OrderView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if getattr(request.user, 'user_type', None) != 'BUYER':
+            return Response({'error': 'Only buyers can view orders.'}, status=status.HTTP_403_FORBIDDEN)
         orders = Order.objects.filter(buyer=request.user)
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        if getattr(request.user, 'user_type', None) != 'BUYER':
+            return Response({'error': 'Only buyers can place orders.'}, status=status.HTTP_403_FORBIDDEN)
+
         cart = Cart.objects.get(buyer=request.user)
-        if not cart.cartitem_set.exists():
+        cart_items = list(cart.cartitem_set.select_related('product').all())
+        if not cart_items:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = OrderSerializer(data={**request.data, 'buyer': request.user.id})
+        # Validate stock and compute total
+        total_amount = 0
+        for item in cart_items:
+            if item.product.stock is None or item.product.stock < item.quantity:
+                return Response(
+                    {
+                        "error": f"Insufficient stock for product '{item.product.name}'.",
+                        "product_id": item.product.id,
+                        "available_stock": item.product.stock,
+                        "requested_quantity": item.quantity,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            total_amount += float(item.product.price) * item.quantity
+
+        serializer = OrderSerializer(data={**request.data, 'buyer': request.user.id, 'total_amount': total_amount})
         if serializer.is_valid():
             order = serializer.save()
-            
-            # Create order items from cart items
-            for cart_item in cart.cartitem_set.all():
+
+            # Create order items and update stock
+            for cart_item in cart_items:
                 OrderItem.objects.create(
                     order=order,
                     product=cart_item.product,
                     quantity=cart_item.quantity,
-                    price_at_time=cart_item.product.price
+                    price_at_time=cart_item.product.price,
                 )
-            
+                cart_item.product.stock -= cart_item.quantity
+                cart_item.product.save()
+
             # Clear the cart
             cart.cartitem_set.all().delete()
-            
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Payment Processing

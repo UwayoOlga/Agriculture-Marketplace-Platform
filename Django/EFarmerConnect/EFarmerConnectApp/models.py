@@ -48,7 +48,9 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} by {self.farmer.username}"
+        name = self.name or "Unnamed product"
+        farmer_name = getattr(self.farmer, "username", "Unknown farmer") if self.farmer else "Unknown farmer"
+        return f"{name} by {farmer_name}"
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
