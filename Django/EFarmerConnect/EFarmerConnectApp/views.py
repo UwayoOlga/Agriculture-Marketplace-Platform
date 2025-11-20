@@ -22,9 +22,12 @@ from .serializers import (
     WeatherAlertSerializer, AgronomicAdviceSerializer,
     CropCalendarSerializer, MarketPriceSerializer,
     DeliveryLogisticsSerializer, NotificationSerializer,
-    SMSNotificationSerializer
+    SMSNotificationSerializer, PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer
 )
 from .payment import get_payment_provider, PaymentException
+import uuid
+from django.utils import timezone as dj_timezone
 
 # Authentication and User Profile Views
 class RegisterView(APIView):
@@ -74,6 +77,67 @@ class ChangePasswordView(APIView):
         request.user.set_password(new_password)
         request.user.save()
         return Response({'detail': 'Password updated successfully.'}, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data.get('email')
+        username = serializer.validated_data.get('username')
+
+        try:
+            if email:
+                user = User.objects.get(email=email)
+            else:
+                user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            # Do not reveal whether the user exists
+            return Response({'detail': 'If an account exists, a reset token has been generated.'}, status=status.HTTP_200_OK)
+
+        from .models import PasswordResetToken
+
+        token = uuid.uuid4().hex
+        PasswordResetToken.objects.create(user=user, token=token)
+
+        # In a real system, send via email/SMS. For now, return token in response for testing.
+        return Response({'detail': 'Password reset token generated.', 'token': token}, status=status.HTTP_201_CREATED)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        from .models import PasswordResetToken
+
+        token_value = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+
+        try:
+            token = PasswordResetToken.objects.get(token=token_value, is_used=False)
+        except PasswordResetToken.DoesNotExist:
+            return Response({'detail': 'Invalid or used token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Optional: expire tokens after e.g. 1 day
+        if token.created_at < dj_timezone.now() - dj_timezone.timedelta(days=1):
+            return Response({'detail': 'Token has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = token.user
+        user.set_password(new_password)
+        user.save()
+
+        token.is_used = True
+        token.save()
+
+        return Response({'detail': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
 
 # List all products
 class ProductListView(APIView):
@@ -283,6 +347,13 @@ class OrderView(APIView):
 
             # Clear the cart
             cart.cartitem_set.all().delete()
+            # Create notification for order creation
+            Notification.objects.create(
+                user=request.user,
+                type='ORDER',
+                title=f'Order #{order.id} created',
+                message='Your order has been placed and is pending processing.',
+            )
 
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -342,6 +413,12 @@ class PaymentView(APIView):
             if status_str == 'COMPLETED':
                 order.status = 'PAID'
                 order.save()
+                Notification.objects.create(
+                    user=request.user,
+                    type='PAYMENT',
+                    title=f'Payment received for Order #{order.id}',
+                    message=f'Your payment of {amount} has been received.',
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -363,8 +440,10 @@ class ForumPostView(APIView):
 
     def get(self, request):
         posts = ForumPost.objects.all().order_by('-created_at')
-        serializer = ForumPostSerializer(posts, many=True)
-        return Response(serializer.data)
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(posts, request)
+        serializer = ForumPostSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = ForumPostSerializer(data={**request.data, 'author': request.user.id})
@@ -391,7 +470,15 @@ class WeatherAlertView(APIView):
     def post(self, request):
         serializer = WeatherAlertSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            alert = serializer.save()
+            # Notify all users about new weather alert
+            for user in User.objects.all():
+                Notification.objects.create(
+                    user=user,
+                    type='WEATHER',
+                    title=alert.title,
+                    message=f"New weather alert: {alert.description}",
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -409,7 +496,14 @@ class AgronomicAdviceView(APIView):
                           status=status.HTTP_403_FORBIDDEN)
         serializer = AgronomicAdviceSerializer(data={**request.data, 'author': request.user.id})
         if serializer.is_valid():
-            serializer.save()
+            advice = serializer.save()
+            for user in User.objects.all():
+                Notification.objects.create(
+                    user=user,
+                    type='ADVICE',
+                    title=advice.title,
+                    message='New agronomic advice has been published.',
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -432,8 +526,26 @@ class CropCalendarView(APIView):
 class MarketPriceView(APIView):
     def get(self, request):
         prices = MarketPrice.objects.all()
-        serializer = MarketPriceSerializer(prices, many=True)
-        return Response(serializer.data)
+
+        # Optional filters: by product_category, market_location, date range
+        category_id = request.query_params.get('category')
+        market_location = request.query_params.get('market_location')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+
+        if category_id:
+            prices = prices.filter(product_category_id=category_id)
+        if market_location:
+            prices = prices.filter(market_location__icontains=market_location)
+        if date_from:
+            prices = prices.filter(date__gte=date_from)
+        if date_to:
+            prices = prices.filter(date__lte=date_to)
+
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(prices, request)
+        serializer = MarketPriceSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         if not request.user.is_staff:
@@ -441,7 +553,14 @@ class MarketPriceView(APIView):
                           status=status.HTTP_403_FORBIDDEN)
         serializer = MarketPriceSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            price = serializer.save()
+            for user in User.objects.all():
+                Notification.objects.create(
+                    user=user,
+                    type='PRICE',
+                    title=f'Market price update for {price.product_category.name}',
+                    message=f"New price at {price.market_location}: {price.price}",
+                )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

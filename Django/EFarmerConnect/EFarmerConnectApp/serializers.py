@@ -5,7 +5,7 @@ from .models import (
     Product, User, Category, ProductImage, Cart, CartItem,
     Order, OrderItem, Payment, Review, ForumPost, Comment,
     WeatherAlert, AgronomicAdvice, CropCalendar, MarketPrice,
-    DeliveryLogistics, Notification, SMSNotification
+    DeliveryLogistics, Notification, SMSNotification, PasswordResetToken
 )
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -43,6 +43,21 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    username = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        if not attrs.get('email') and not attrs.get('username'):
+            raise serializers.ValidationError('Provide either email or username.')
+        return attrs
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
 
 class CategorySerializer(serializers.ModelSerializer):

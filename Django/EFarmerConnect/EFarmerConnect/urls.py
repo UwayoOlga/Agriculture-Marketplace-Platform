@@ -24,7 +24,8 @@ from EFarmerConnectApp.views import (
     ProductListView, ProductCreateView, ProductDetailView,
     ProductUpdateView, ProductDeleteView, ProductSearchView,
     RegisterView, CustomTokenObtainPairView, UserProfileView,
-    ChangePasswordView, CategoryViewSet, CartView, CartItemView,
+    ChangePasswordView, PasswordResetRequestView, PasswordResetConfirmView,
+    CategoryViewSet, CartView, CartItemView,
     OrderView, PaymentView, ReviewView, ForumPostView,
     CommentView, WeatherAlertView, AgronomicAdviceView,
     CropCalendarView, MarketPriceView, DeliveryLogisticsView,
@@ -59,6 +60,8 @@ urlpatterns = [
     path('api/login/', CustomTokenObtainPairView.as_view(), name='login'),
     path('api/profile/', UserProfileView.as_view(), name='user_profile'),
     path('api/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('api/password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('api/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     
     # Product-related endpoints
     path('api/products/', ProductListView.as_view(), name='product_list'),
