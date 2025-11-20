@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework import status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Q
 from django.utils import timezone
@@ -78,8 +79,33 @@ class ChangePasswordView(APIView):
 class ProductListView(APIView):
     def get(self, request):
         products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+
+        # Filters
+        category_id = request.query_params.get('category')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        location = request.query_params.get('location')
+        is_organic = request.query_params.get('is_organic')
+
+        if category_id:
+            products = products.filter(category_id=category_id)
+        if min_price:
+            products = products.filter(price__gte=min_price)
+        if max_price:
+            products = products.filter(price__lte=max_price)
+        if location:
+            products = products.filter(farm_location__icontains=location)
+        if is_organic is not None:
+            if is_organic.lower() in ['1', 'true', 'yes']:
+                products = products.filter(is_organic=True)
+            elif is_organic.lower() in ['0', 'false', 'no']:
+                products = products.filter(is_organic=False)
+
+        # Pagination
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 # Add a new product
 class ProductCreateView(APIView):
@@ -143,8 +169,32 @@ class ProductSearchView(APIView):
     def get(self, request):
         query = request.GET.get('query', '')
         products = Product.objects.filter(Q(name__icontains=query) | Q(description__icontains=query))
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+
+        # Reuse same filters as list view
+        category_id = request.query_params.get('category')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        location = request.query_params.get('location')
+        is_organic = request.query_params.get('is_organic')
+
+        if category_id:
+            products = products.filter(category_id=category_id)
+        if min_price:
+            products = products.filter(price__gte=min_price)
+        if max_price:
+            products = products.filter(price__lte=max_price)
+        if location:
+            products = products.filter(farm_location__icontains=location)
+        if is_organic is not None:
+            if is_organic.lower() in ['1', 'true', 'yes']:
+                products = products.filter(is_organic=True)
+            elif is_organic.lower() in ['0', 'false', 'no']:
+                products = products.filter(is_organic=False)
+
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 # Category Views
 class CategoryViewSet(viewsets.ModelViewSet):
