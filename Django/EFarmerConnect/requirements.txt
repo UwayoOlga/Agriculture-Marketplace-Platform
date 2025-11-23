@@ -1,0 +1,11 @@
+Django>=4.2.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.1.0
+Pillow>=10.0.0
+python-dateutil>=2.8.2
+django-filter>=22.0
+django-allauth>=0.51.0
+django-rest-auth>=0.9.5
+djangorestframework-simplejwt>=5.2.2
+django-mpesa>=2.0.0
+python-dotenv>=0.21.0

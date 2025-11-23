@@ -4,8 +4,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     Product, User, Category, ProductImage, Cart, CartItem,
     Order, OrderItem, Payment, Review, ForumPost, Comment,
-    WeatherAlert, AgronomicAdvice, CropCalendar, MarketPrice,
-    DeliveryLogistics, Notification, SMSNotification, PasswordResetToken
+    WeatherAlert, AgronomicAdvice, MarketPrice, DeliveryLogistics, 
+    Notification, SMSNotification, PasswordResetToken
 )
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -132,13 +132,7 @@ class AgronomicAdviceSerializer(serializers.ModelSerializer):
         model = AgronomicAdvice
         fields = '__all__'
 
-class CropCalendarSerializer(serializers.ModelSerializer):
-    farmer_details = UserSerializer(source='farmer', read_only=True)
-    crop_details = CategorySerializer(source='crop', read_only=True)
-    
-    class Meta:
-        model = CropCalendar
-        fields = '__all__'
+# CropCalendar serializer has been moved to serializers_season.py
 
 class MarketPriceSerializer(serializers.ModelSerializer):
     category_details = CategorySerializer(source='product_category', read_only=True)

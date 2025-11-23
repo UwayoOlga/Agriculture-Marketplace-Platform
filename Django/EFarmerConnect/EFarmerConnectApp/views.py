@@ -10,9 +10,10 @@ from django.utils import timezone
 from .models import (
     Product, User, Category, ProductImage, Cart, CartItem,
     Order, OrderItem, Payment, Review, ForumPost, Comment,
-    WeatherAlert, AgronomicAdvice, CropCalendar, MarketPrice,
+    WeatherAlert, AgronomicAdvice, MarketPrice, 
     DeliveryLogistics, Notification, SMSNotification
 )
+from .models_season import CropCalendar
 from .serializers import (
     ProductSerializer, UserSerializer, CustomTokenObtainPairSerializer,
     UserUpdateSerializer, ChangePasswordSerializer, CategorySerializer,
@@ -20,11 +21,11 @@ from .serializers import (
     OrderSerializer, OrderItemSerializer, PaymentSerializer,
     ReviewSerializer, ForumPostSerializer, CommentSerializer,
     WeatherAlertSerializer, AgronomicAdviceSerializer,
-    CropCalendarSerializer, MarketPriceSerializer,
-    DeliveryLogisticsSerializer, NotificationSerializer,
-    SMSNotificationSerializer, PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer
+    MarketPriceSerializer, DeliveryLogisticsSerializer, 
+    NotificationSerializer, SMSNotificationSerializer, 
+    PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 )
+from .serializers_season import CropCalendarSerializer
 from .payment import get_payment_provider, PaymentException
 import uuid
 from django.utils import timezone as dj_timezone
@@ -507,20 +508,7 @@ class AgronomicAdviceView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class CropCalendarView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        calendars = CropCalendar.objects.filter(farmer=request.user)
-        serializer = CropCalendarSerializer(calendars, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = CropCalendarSerializer(data={**request.data, 'farmer': request.user.id})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# CropCalendarView has been moved to views_season.py
 
 # Market Information
 class MarketPriceView(APIView):

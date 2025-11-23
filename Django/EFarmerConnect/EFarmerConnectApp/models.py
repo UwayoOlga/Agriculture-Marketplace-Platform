@@ -247,24 +247,6 @@ class AgronomicAdvice(models.Model):
     def __str__(self):
         return self.title
 
-class CropCalendar(models.Model):
-    SEASON_CHOICES = (
-        ('A', 'Season A (Sept-Feb)'),
-        ('B', 'Season B (March-July)'),
-        ('C', 'Season C (Valley/Marshland)'),
-    )
-    
-    farmer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'FARMER'})
-    crop = models.ForeignKey(Category, on_delete=models.CASCADE)
-    season = models.CharField(max_length=1, choices=SEASON_CHOICES)
-    planting_date = models.DateField()
-    expected_harvest_date = models.DateField()
-    field_size = models.DecimalField(max_digits=10, decimal_places=2)
-    notes = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return f"{self.crop.name} - {self.get_season_display()}"
-
 class MarketPrice(models.Model):
     product_category = models.ForeignKey(Category, on_delete=models.CASCADE)
     market_location = models.CharField(max_length=255)

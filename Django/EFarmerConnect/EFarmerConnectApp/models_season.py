@@ -13,6 +13,8 @@ class AgriculturalSeason(models.Model):
     end_date = models.DateField()
     is_active = models.BooleanField(default=False)
     description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name = _("Agricultural Season")
@@ -45,7 +47,7 @@ class CropCalendar(models.Model):
     planting_end = models.DateField()
     harvest_start = models.DateField()
     harvest_end = models.DateField()
-    growing_period_days = models.PositiveIntegerField(help_text="Average growing period in days")
+    growing_period_days = models.PositiveIntegerField(help_text="Average growing period in days", default=90)
     notes = models.TextField(blank=True)
     
     class Meta:
@@ -78,6 +80,8 @@ class FarmerSeasonPlan(models.Model):
     expected_yield = models.DecimalField(max_digits=10, decimal_places=2, help_text="Expected yield in kg")
     actual_yield = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Actual yield in kg")
     notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name = _("Farmer's Season Plan")

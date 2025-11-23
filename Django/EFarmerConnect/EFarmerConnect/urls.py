@@ -28,9 +28,9 @@ from EFarmerConnectApp.views import (
     CategoryViewSet, CartView, CartItemView,
     OrderView, PaymentView, ReviewView, ForumPostView,
     CommentView, WeatherAlertView, AgronomicAdviceView,
-    CropCalendarView, MarketPriceView, DeliveryLogisticsView,
-    NotificationView, SMSNotificationView
+    MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView
 )
+from EFarmerConnectApp.views_season import CropCalendarView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
