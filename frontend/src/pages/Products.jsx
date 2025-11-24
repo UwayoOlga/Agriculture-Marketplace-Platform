@@ -31,6 +31,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { sampleProducts, sampleCategories } from '../data/sampleProducts';
+import placeholder from '../assets/images/placeholder.svg';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -204,19 +205,19 @@ const Products = () => {
                 display: 'flex', 
                 flexDirection: 'column',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                // Enforce consistent sizing
+                minHeight: 420,
                 '&:hover': {
                   transform: 'translateY(-4px)',
                   boxShadow: 3
                 }
               }}
             >
-              <CardMedia
-                component="img"
-                height="200"
-                image={product.images?.[0]?.image || product.image || 'https://via.placeholder.com/300'}
-                alt={product.name}
-                sx={{ objectFit: 'cover' }}
-              />
+                <Box sx={{ width: '100%' }}>
+                  <Box sx={{ position: 'relative', width: '100%', pt: '100%', overflow: 'hidden' }}>
+                    <Box component="img" src={product.images?.[0]?.image || product.image || placeholder} alt={product.name} onError={(e) => { if (e?.target) e.target.src = placeholder; }} sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </Box>
+                </Box>
               <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
@@ -227,11 +228,9 @@ const Products = () => {
                   </Typography>
                 </Box>
                 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
                   {product.description ? 
-                    (product.description.length > 100 
-                      ? `${product.description.substring(0, 100)}...`
-                      : product.description)
+                    (product.description)
                     : 'No description available'}
                 </Typography>
                 
