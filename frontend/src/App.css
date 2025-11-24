@@ -40,3 +40,32 @@
 .read-the-docs {
   color: #888;
 }
+/* frontend/src/App.css */
+.rbc-calendar {
+  min-height: 600px;
+}
+
+.rbc-event {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rbc-today {
+  background-color: #f0f7ff;
+}
+
+.rbc-toolbar button {
+  color: #333;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+}
+
+.rbc-toolbar button.rbc-active {
+  background: #1890ff;
+  color: #fff;
+  border-color: #1890ff;
+}

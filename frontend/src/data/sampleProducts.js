@@ -145,11 +145,16 @@ const sampleCategories = [
   { id: 1, name: "Coffee" },
   { id: 2, name: "Tea" },
   { id: 3, name: "Fruits" },
-  { id: 4, name: "Legumes" },
-  { id: 5, name: "Root Crops" },
-  { id: 6, name: "Vegetables" },
-  { id: 7, name: "Grains" },
-  { id: 8, name: "Spices" }
+  { id: 4, name: "Vegetables" },
+  { id: 5, name: "Grains" },
+  { id: 6, name: "Legumes" },
+  { id: 7, name: "Root Crops" },
+  { id: 8, name: "Spices" },
+  { id: 9, name: "Nuts & Seeds" },
+  { id: 10, name: "Herbs" },
+  { id: 11, name: "Dairy" },
+  { id: 12, name: "Honey" },
+  { id: 13, name: "Other" }
 ];
 
 export { sampleProducts, sampleCategories };

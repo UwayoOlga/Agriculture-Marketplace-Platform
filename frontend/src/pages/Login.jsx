@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Container, 
   TextField, 
@@ -8,15 +8,21 @@ import {
   Typography, 
   Box, 
   Paper, 
-  Alert 
+  Alert,
+  CircularProgress,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    showPassword: false
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -25,6 +31,13 @@ const Login = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleClickShowPassword = () => {
+    setFormData(prev => ({
+      ...prev,
+      showPassword: !prev.showPassword
     }));
   };
 
@@ -38,12 +51,21 @@ const Login = () => {
       return;
     }
 
-    const result = await login(username, password);
-    
-    if (result.success) {
-      navigate('/products');
-    } else {
-      setError(result.error || 'Login failed. Please check your credentials.');
+    setIsLoading(true);
+    try {
+      const result = await login(username, password);
+      
+      if (result.success) {
+        // Use replace instead of navigate to prevent going back to login page
+        navigate('/products', { replace: true });
+      } else {
+        setError(result.error || 'Login failed. Please check your credentials.');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,7 +81,7 @@ const Login = () => {
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Typography component="h1" variant="h5" align="center" gutterBottom>
-            Sign In
+            Sign In to E-Farmer Connect
           </Typography>
           
           {error && (
@@ -80,6 +102,7 @@ const Login = () => {
               autoFocus
               value={formData.username}
               onChange={handleChange}
+              disabled={isLoading}
             />
             <TextField
               margin="normal"
@@ -87,17 +110,33 @@ const Login = () => {
               fullWidth
               name="password"
               label="Password"
-              type="password"
+              type={formData.showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
+              disabled={isLoading}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      edge="end"
+                    >
+                      {formData.showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              disabled={isLoading}
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+              startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
             >
               Sign In
             </Button>

@@ -1,12 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { Box, CircularProgress } from '@mui/material';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Products from './pages/Products';
 import Home from './pages/Home';
+import Profile from './pages/Profile';
+import { SnackbarProvider } from 'notistack';
+import { CartProvider } from './contexts/CartContext';
 
 // Create a theme instance
 const theme = createTheme({
@@ -40,38 +44,44 @@ const theme = createTheme({
 
 // A wrapper for protected routes
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
-    return <div>Loading...</div>; // Or a loading spinner
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
 const AppContent = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      
-      {/* Public routes */}
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
-        
-        {/* Protected routes */}
+        <Route path="login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
+        <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
+        <Route path="products" element={<Products />} />
+
+        {/* Protected Routes */}
         <Route
-          path="products"
+          path="profile"
           element={
             <PrivateRoute>
-              <Products />
+              <Profile />
             </PrivateRoute>
           }
         />
-        
-        {/* Add more protected routes here */}
+
+        {/* Additional routes can go here (cart, orders, etc.) */}
       </Route>
-      
+
+      {/* Fallback for unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -81,11 +91,15 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
+      <SnackbarProvider maxSnack={3}>
         <AuthProvider>
-          <AppContent />
+          <CartProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </CartProvider>
         </AuthProvider>
-      </Router>
+      </SnackbarProvider>
     </ThemeProvider>
   );
 };

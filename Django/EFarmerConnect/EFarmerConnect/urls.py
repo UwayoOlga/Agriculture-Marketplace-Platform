@@ -34,6 +34,21 @@ from EFarmerConnectApp.views_season import CropCalendarView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
+from django.http import JsonResponse
+
+
+def api_root(request):
+    """Public API root used for quick checks in development.
+
+    Returns a small JSON object so GET / does not require authentication.
+    In production you may want to remove or restrict this endpoint.
+    """
+    return JsonResponse({
+        "name": "E-Farmer Connect API",
+        "version": "v1",
+        "docs": "/swagger/",
+        "note": "This root is public for development only."
+    })
 
 
 schema_view = get_schema_view(
@@ -51,6 +66,7 @@ router = DefaultRouter()
 router.register(r'api/categories', CategoryViewSet, basename='category')
 
 urlpatterns = [
+    path('', api_root, name='api_root'),
     path('admin/', admin.site.urls),  # Admin site
     
     # Authentication endpoints

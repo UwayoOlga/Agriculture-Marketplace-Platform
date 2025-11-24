@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   Container, 
-  Grid, 
   Card, 
   CardContent, 
   CardMedia, 
@@ -21,8 +20,10 @@ import {
   CircularProgress,
   Chip,
   Rating,
-  InputAdornment
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StoreIcon from '@mui/icons-material/Store';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -47,11 +48,9 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
 
-  // Fetch categories on component mount
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        // Try to fetch from API first
         const response = await apiClient.get('/api/categories/');
         if (response.data && Array.isArray(response.data)) {
           setCategories(response.data);
@@ -61,20 +60,17 @@ const Products = () => {
         console.log('Using sample categories');
       }
       
-      // Fallback to sample categories if API fails
       setCategories(sampleCategories);
     };
     
     fetchCategories();
   }, []);
 
-  // Fetch products when filters or page changes
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
         
-        // Try to fetch from API first
         try {
           const queryParams = new URLSearchParams();
           Object.entries(filters).forEach(([key, value]) => {
@@ -92,10 +88,8 @@ const Products = () => {
           console.log('Using sample products data');
         }
         
-        // If API call fails or returns no data, use sample data with filters
         let filteredProducts = [...sampleProducts];
         
-        // Apply filters to sample data
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           filteredProducts = filteredProducts.filter(p => 
@@ -133,7 +127,7 @@ const Products = () => {
         }
         
         setProducts(filteredProducts);
-        setTotalPages(1); // Simple pagination for sample data
+        setTotalPages(1); 
       } catch (error) {
         console.error('Error:', error);
         setProducts([]);
@@ -145,12 +139,23 @@ const Products = () => {
     fetchProducts();
   }, [filters, page]);
 
-  const handleFilterChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleFilterChange = (name, value) => {
     setFilters(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
+    setPage(1);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      min_price: '',
+      max_price: '',
+      is_organic: false,
+      location: ''
+    });
     setPage(1);
   };
 
@@ -163,7 +168,6 @@ const Products = () => {
     navigate(`/products/${productId}`);
   };
 
-  // Format price with 2 decimal places
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -173,7 +177,6 @@ const Products = () => {
     }).format(price);
   };
 
-  // Render product cards
   const renderProductCards = () => {
     if (loading && products.length === 0) {
       return (
@@ -314,42 +317,35 @@ const Products = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Box mb={4}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Rwandan Agricultural Products
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Discover fresh, high-quality produce from the heart of Rwanda
-        </Typography>
-      </Box>
-
-      {/* Filters */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
-          Filter Products
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={3}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>Filters</Typography>
+            
             <TextField
               fullWidth
               label="Search products"
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
               variant="outlined"
-              size="small"
-              placeholder="e.g., coffee, bananas..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: filters.search && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => handleFilterChange('search', '')}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Category</InputLabel>
               <Select
-                name="category"
                 value={filters.category}
-                onChange={handleFilterChange}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
                 label="Category"
               >
                 <MenuItem value="">All Categories</MenuItem>
@@ -360,124 +356,109 @@ const Products = () => {
                 ))}
               </Select>
             </FormControl>
-          </Grid>
-          
-          <Grid item xs={6} sm={3} md={2}>
-            <TextField
-              fullWidth
-              label="Min Price"
-              name="min_price"
-              type="number"
-              value={filters.min_price}
-              onChange={handleFilterChange}
-              variant="outlined"
-              size="small"
-              placeholder="Min"
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                inputProps: { min: 0 }
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={6} sm={3} md={2}>
-            <TextField
-              fullWidth
-              label="Max Price"
-              name="max_price"
-              type="number"
-              value={filters.max_price}
-              onChange={handleFilterChange}
-              variant="outlined"
-              size="small"
-              placeholder="Max"
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                inputProps: { min: 0 }
-              }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+              <TextField
+                fullWidth
+                label="Min Price"
+                type="number"
+                value={filters.min_price}
+                onChange={(e) => handleFilterChange('min_price', e.target.value)}
+              />
+              <TextField
+                fullWidth
+                label="Max Price"
+                type="number"
+                value={filters.max_price}
+                onChange={(e) => handleFilterChange('max_price', e.target.value)}
+              />
+            </Box>
+
             <FormControlLabel
               control={
                 <Checkbox
                   checked={filters.is_organic}
-                  onChange={handleFilterChange}
-                  name="is_organic"
-                  color="success"
+                  onChange={(e) => handleFilterChange('is_organic', e.target.checked)}
                 />
               }
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <img 
-                    src="https://img.icons8.com/color/24/000000/organic-food.png" 
-                    alt="organic" 
-                    style={{ marginRight: 8, width: 20, height: 20 }} 
-                  />
-                  <span>Organic Only</span>
-                </Box>
-              }
-              sx={{ 
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                '& .MuiFormControlLabel-label': {
-                  fontSize: '0.875rem'
-                }
+              label="Organic Only"
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              fullWidth
+              label="Location"
+              variant="outlined"
+              value={filters.location}
+              onChange={(e) => handleFilterChange('location', e.target.value)}
+              sx={{ mb: 2 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOnIcon color="action" />
+                  </InputAdornment>
+                ),
               }}
             />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={1}>
+
             <Button
-              variant="outlined"
-              color="error"
-              onClick={() => {
-                setFilters({
-                  search: '',
-                  category: '',
-                  min_price: '',
-                  max_price: '',
-                  is_organic: false,
-                  location: ''
-                });
-                setPage(1);
-              }}
               fullWidth
-              sx={{ height: '40px' }}
+              variant="outlined"
+              onClick={resetFilters}
+              color="error"
               startIcon={<ClearIcon />}
             >
-              Clear
+              Clear Filters
             </Button>
-          </Grid>
+          </Paper>
         </Grid>
-      </Paper>
 
-      {/* Products Grid */}
-      {renderProductCards()}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Box mt={4} display="flex" justifyContent="center">
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={handlePageChange}
-            color="primary"
-            showFirstButton
-            showLastButton
-            sx={{ '& .MuiPaginationItem-root': { borderRadius: 1 } }}
-          />
-        </Box>
-      )}
-      
-      {/* Demo Notice */}
-      <Box mt={4} textAlign="center">
-        <Typography variant="body2" color="text.secondary">
-          Note: This is a demo with sample data. To connect to a real backend, ensure your API is running and properly configured.
-        </Typography>
-      </Box>
+        <Grid item xs={12} md={9}>
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+              <CircularProgress />
+            </Box>
+          ) : products.length > 0 ? (
+            <>
+              {renderProductCards()}
+              
+              {totalPages > 1 && (
+                <Box mt={4} display="flex" justifyContent="center">
+                  <Pagination
+                    count={totalPages}
+                    page={page}
+                    onChange={handlePageChange}
+                    color="primary"
+                    showFirstButton
+                    showLastButton
+                    sx={{ '& .MuiPaginationItem-root': { borderRadius: 1 } }}
+                  />
+                </Box>
+              )}
+            </>
+          ) : (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h6" color="textSecondary">
+                No products found matching your criteria
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={resetFilters}
+                sx={{ mt: 2 }}
+              >
+                Clear Filters
+              </Button>
+            </Paper>
+          )}
+          
+          <Box mt={4} textAlign="center">
+            <Typography variant="body2" color="text.secondary">
+              Note: This is a demo with sample data. To connect to a real backend, ensure your API is running and properly configured.
+            </Typography>
+          </Box>
+        </Grid>
+      </Grid>
     </Container>
   );
 };

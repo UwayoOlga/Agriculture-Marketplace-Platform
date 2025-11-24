@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -12,14 +12,20 @@ import {
   MenuItem,
   Avatar,
   Tooltip,
-  Divider
+  Divider,
+  useMediaQuery,
+  useTheme,
+  Badge
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import { useAuth } from '../context/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import { useAuth } from '../contexts/AuthContext';
 
 const Layout = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { itemCount } = useCart();
   const [anchorElNav, setAnchorElNav] = useState(null);
   const [anchorElUser, setAnchorElUser] = useState(null);
   const navigate = useNavigate();
@@ -174,7 +180,9 @@ const Layout = () => {
                     to="/cart"
                     sx={{ mr: 1 }}
                   >
-                    <ShoppingCartIcon />
+                    <Badge badgeContent={itemCount} color="secondary">
+                      <ShoppingCartIcon />
+                    </Badge>
                   </IconButton>
                   
                   <Tooltip title="Open settings">
