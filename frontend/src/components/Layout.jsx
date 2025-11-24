@@ -69,6 +69,7 @@ const Layout = () => {
 
   if (user?.user_type === 'FARMER') {
     userMenuItems.push({ title: 'My Products', action: () => navigate('/farmer/products') });
+    userMenuItems.push({ title: 'Farmer Dashboard', action: () => navigate('/farmer-dashboard') });
   }
 
   return (

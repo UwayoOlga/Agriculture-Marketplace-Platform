@@ -9,6 +9,8 @@ import Register from './pages/Register';
 import Products from './pages/Products';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
+import FarmerDashboard from './pages/FarmerDashboard';
+import Forum from './pages/Forum';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
 
@@ -58,15 +60,23 @@ const PrivateRoute = ({ children }) => {
 };
 
 const AppContent = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<Home />} />
+        <Route 
+          index 
+          element={
+            isAuthenticated && user?.user_type === 'FARMER' ? 
+            <Navigate to="/farmer-dashboard" /> : 
+            <Home /> 
+          } 
+        />
         <Route path="login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
         <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
         <Route path="products" element={<Products />} />
+        <Route path="forum" element={<Forum />} />
 
         {/* Protected Routes */}
         <Route
@@ -74,6 +84,16 @@ const AppContent = () => {
           element={
             <PrivateRoute>
               <Profile />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Farmer Dashboard */}
+        <Route
+          path="farmer-dashboard"
+          element={
+            <PrivateRoute>
+              <FarmerDashboard />
             </PrivateRoute>
           }
         />
