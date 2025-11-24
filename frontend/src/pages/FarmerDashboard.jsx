@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Box, 
   Typography, 
@@ -11,10 +11,16 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Paper
+  Paper,
+  FormControlLabel,
+  Checkbox,
+  Avatar,
+  IconButton,
+  CircularProgress
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { styled } from '@mui/material/styles';
 
 const FarmerDashboard = () => {
   const { user } = useAuth();
@@ -26,22 +32,77 @@ const FarmerDashboard = () => {
     stock: '',
     unit: 'kg',
     category: '',
-    is_organic: false
+    is_organic: false,
+    image: null,
+    imagePreview: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked, files } = e.target;
+    
+    if (type === 'file') {
+      const file = files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProductData(prev => ({
+            ...prev,
+            image: file,
+            imagePreview: reader.result
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      setProductData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
+  const handleRemoveImage = () => {
     setProductData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      image: null,
+      imagePreview: ''
     }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     try {
-      // TODO: Add API call to create product
-      console.log('Product data:', productData);
+      setIsSubmitting(true);
+      
+      const formData = new FormData();
+      formData.append('name', productData.name);
+      formData.append('description', productData.description);
+      formData.append('price', productData.price);
+      formData.append('stock', productData.stock);
+      formData.append('unit', productData.unit);
+      formData.append('category', productData.category);
+      formData.append('is_organic', productData.is_organic);
+      
+      if (productData.image) {
+        formData.append('image', productData.image);
+      }
+      
+      // TODO: Replace with your actual API endpoint
+      // const response = await api.post('/api/products/', formData, {
+      //   headers: {
+      //     'Content-Type': 'multipart/form-data',
+      //   },
+      // });
+      
+      console.log('Product data:', formData);
+      
       // Reset form
       setProductData({
         name: '',
@@ -50,14 +111,22 @@ const FarmerDashboard = () => {
         stock: '',
         unit: 'kg',
         category: '',
-        is_organic: false
+        is_organic: false,
+        image: null,
+        imagePreview: ''
       });
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
       setShowProductForm(false);
-      // Show success message
       alert('Product added successfully!');
     } catch (error) {
       console.error('Error adding product:', error);
       alert('Failed to add product. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -187,6 +256,79 @@ const FarmerDashboard = () => {
                       margin="normal"
                     />
                   </Grid>
+                  
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={productData.is_organic}
+                          onChange={handleInputChange}
+                          name="is_organic"
+                          color="primary"
+                        />
+                      }
+                      label="Organic Product"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, mb: 1 }}>
+                      Product Image
+                    </Typography>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleInputChange}
+                      name="image"
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      id="product-image-upload"
+                    />
+                    <label htmlFor="product-image-upload">
+                      <Button
+                        variant="outlined"
+                        component="span"
+                        startIcon={<CloudUploadIcon />}
+                        sx={{ mb: 2 }}
+                      >
+                        {productData.image ? 'Change Image' : 'Upload Image'}
+                      </Button>
+                    </label>
+                    
+                    {productData.imagePreview && (
+                      <Box sx={{ mt: 2, position: 'relative', display: 'inline-block' }}>
+                        <img 
+                          src={productData.imagePreview} 
+                          alt="Preview" 
+                          style={{ 
+                            maxWidth: '200px', 
+                            maxHeight: '200px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd'
+                          }} 
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={handleRemoveImage}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            },
+                          }}
+                        >
+                          <DeleteIcon color="error" fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                    
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                      Recommended size: 800x600px. Max file size: 5MB
+                    </Typography>
+                  </Grid>
                   <Grid item xs={12}>
                     <Button 
                       type="submit" 
@@ -194,7 +336,7 @@ const FarmerDashboard = () => {
                       color="primary"
                       sx={{ mt: 2 }}
                     >
-                      Add Product
+{isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Add Product'}
                     </Button>
                   </Grid>
                 </Grid>
