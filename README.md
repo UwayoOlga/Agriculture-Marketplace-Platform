@@ -1,5 +1,3 @@
- 
-
 # <u>UbuhinziLink </u>
 
 <u>Problem:</u> Many farmers in Africa, including those in Rwanda, struggle with access to markets, fair pricing, and supply chain inefficiencies. 
