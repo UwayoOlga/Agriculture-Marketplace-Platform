@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, 
   Card, 
@@ -21,23 +21,60 @@ import {
   Chip,
   Rating,
   InputAdornment,
-  IconButton
+  IconButton,
+  useTheme,
+  useMediaQuery,
+  CardActionArea,
+  Divider,
+  Stack,
+  Tooltip,
+  Fade
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StoreIcon from '@mui/icons-material/Store';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ClearIcon from '@mui/icons-material/Clear';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { sampleProducts, sampleCategories } from '../data/sampleProducts';
-import placeholder from '../assets/images/placeholder.svg';
+
+// Import placeholder image
+import placeholderImage from '../assets/images/placeholder.svg';
+
+// List of available product images (relative paths)
+const productImagePaths = [
+  '1.jpg',
+  '2.jpg',
+  '3.jpg',
+  '4.jpg',
+  '5.jpg',
+  '6.jpg',
+  '7.jpg',
+  'Coffee.jpg',
+  'RWANDAN_Fresh_Passionfruit.jpg',
+  'avocadoes.jpg',
+  'legumes.jpg',
+  'legumes2.jpg',
+  'rootcrops.jpg',
+  'spices.jpg'
+];
+
+// Function to get a random image path for a product
+const getRandomProductImage = (id) => {
+  const index = id ? (id % productImagePaths.length) : Math.floor(Math.random() * productImagePaths.length);
+  return `/src/assets/images/${productImagePaths[index]}`;
+};
 
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -46,6 +83,7 @@ const Products = () => {
     is_organic: false,
     location: ''
   });
+  const [showFilters, setShowFilters] = useState(!isMobile);
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
 
@@ -160,6 +198,10 @@ const Products = () => {
     setPage(1);
   };
 
+  const toggleFilters = () => {
+    setShowFilters(prev => !prev);
+  };
+
   const handlePageChange = (event, value) => {
     setPage(value);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -181,134 +223,227 @@ const Products = () => {
   const renderProductCards = () => {
     if (loading && products.length === 0) {
       return (
-        <Box display="flex" justifyContent="center" my={4}>
-          <CircularProgress />
+        <Box 
+          display="flex" 
+          justifyContent="center" 
+          alignItems="center" 
+          minHeight="50vh"
+          flexDirection="column"
+        >
+          <CircularProgress size={60} thickness={4} />
+          <Typography variant="h6" color="textSecondary" sx={{ mt: 2 }}>
+            Loading fresh products...
+          </Typography>
         </Box>
       );
     }
 
     if (products.length === 0) {
       return (
-        <Box textAlign="center" my={4}>
-          <Typography variant="h6">No products found. Try adjusting your filters.</Typography>
+        <Box 
+          textAlign="center" 
+          my={8} 
+          p={4}
+          bgcolor="background.paper"
+          borderRadius={2}
+          boxShadow={1}
+        >
+          <Box 
+            component="img"
+            src={placeholderImage}
+            alt="No products"
+            sx={{ 
+              width: 200, 
+              height: 200, 
+              opacity: 0.7,
+              mb: 2 
+            }}
+          />
+          <Typography variant="h5" color="text.secondary" gutterBottom>
+            No products found
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            We couldn't find any products matching your filters.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={resetFilters}
+            startIcon={<ClearIcon />}
+          >
+            Clear Filters
+          </Button>
         </Box>
       );
     }
 
     return (
       <Grid container spacing={3}>
-        {products.map((product) => (
+        {products.map((product, index) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-            <Card 
-              sx={{ 
-                height: '100%', 
-                display: 'flex', 
-                flexDirection: 'column',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                // Enforce consistent sizing
-                minHeight: 420,
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 3
-                }
-              }}
-            >
-                <Box sx={{ width: '100%' }}>
-                  <Box sx={{ position: 'relative', width: '100%', pt: '100%', overflow: 'hidden' }}>
-                    <Box component="img" src={product.images?.[0]?.image || product.image || placeholder} alt={product.name} onError={(e) => { if (e?.target) e.target.src = placeholder; }} sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </Box>
-                </Box>
-              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-                    {product.name}
-                  </Typography>
-                  <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', ml: 2 }}>
-                    {formatPrice(product.price)}
-                  </Typography>
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                  {product.description ? 
-                    (product.description)
-                    : 'No description available'}
-                </Typography>
-                
-                <Box sx={{ mb: 1 }}>
-                  <Chip 
-                    label={product.category?.name || 'Uncategorized'} 
-                    size="small" 
-                    sx={{ 
-                      mr: 1, 
-                      mb: 1,
-                      backgroundColor: 'primary.light',
-                      color: 'primary.contrastText'
+            <Fade in={true} timeout={500} style={{ transitionDelay: `${index * 50}ms` }}>
+              <Card 
+                sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  transition: 'transform 0.3s, box-shadow 0.3s',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    boxShadow: 6,
+                    '& .product-image': {
+                      transform: 'scale(1.05)'
+                    }
+                  }
+                }}
+              >
+                <CardActionArea 
+                  onClick={() => handleViewDetails(product.id)}
+                  sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+                >
+                  <Box 
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      height: 200,
+                      overflow: 'hidden',
+                      bgcolor: 'background.paper'
                     }}
-                  />
-                  {product.is_organic && (
-                    <Chip 
-                      label="Organic" 
-                      color="success" 
-                      size="small" 
-                      sx={{ 
-                        mb: 1,
-                        color: 'white'
+                  >
+                    <Box
+                      component="img"
+                      src={product.image || getRandomProductImage(product.id || index)}
+                      alt={product.name}
+                      className="product-image"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = placeholderImage;
+                      }}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transition: 'transform 0.5s ease-in-out'
                       }}
                     />
-                  )}
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LocationOnIcon color="action" fontSize="small" />
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {product.location}
-                  </Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <StoreIcon color="action" fontSize="small" />
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {product.vendor || 'Local Farmer'}
-                  </Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 'auto' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Rating 
-                      value={product.rating || 0} 
-                      precision={0.5} 
-                      readOnly 
-                      size="small" 
-                      sx={{ mr: 0.5 }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      ({product.rating?.toFixed(1) || 'N/A'})
-                    </Typography>
+                    {product.is_organic && (
+                      <Chip 
+                        label="ORGANIC" 
+                        size="small" 
+                        color="success" 
+                        sx={{ 
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          fontWeight: 700,
+                          letterSpacing: 0.5,
+                          fontSize: '0.65rem',
+                          height: 24,
+                          '& .MuiChip-label': {
+                            px: 1.5
+                          }
+                        }}
+                      />
+                    )}
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    {product.quantity || 10} {product.unit || 'kg'} available
-                  </Typography>
-                </Box>
-              </CardContent>
-              
-              <CardActions sx={{ p: 2, pt: 0 }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  fullWidth
-                  onClick={() => handleViewDetails(product.id)}
-                  startIcon={<VisibilityIcon />}
-                  sx={{ 
-                    bgcolor: 'primary.main',
-                    '&:hover': {
-                      bgcolor: 'primary.dark'
-                    }
-                  }}
-                >
-                  View Details
-                </Button>
-              </CardActions>
-            </Card>
+                  
+                  <CardContent sx={{ flexGrow: 1, p: 3, pb: 1 }}>
+                    <Typography 
+                      gutterBottom 
+                      variant="h6" 
+                      component="h3"
+                      sx={{
+                        fontWeight: 700,
+                        lineHeight: 1.3,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        minHeight: '2.8em',
+                        mb: 1.5,
+                        color: 'text.primary',
+                        fontSize: '1.1rem'
+                      }}
+                    >
+                      {product.name}
+                    </Typography>
+                    
+                    <Box display="flex" alignItems="center" mb={1.5}>
+                      <Rating 
+                        value={product.rating || 0} 
+                        precision={0.5} 
+                        readOnly 
+                        size="small"
+                        sx={{ 
+                          mr: 1, 
+                          color: theme.palette.secondary.main,
+                          '& .MuiRating-iconFilled': {
+                            color: theme.palette.secondary.main
+                          }
+                        }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        ({product.review_count || 0} reviews)
+                      </Typography>
+                    </Box>
+                    
+                    <Box display="flex" alignItems="center" mb={2}>
+                      <StoreIcon color="action" fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {product.farmer?.username || 'Local Farmer'}
+                      </Typography>
+                    </Box>
+                    
+                    <Box display="flex" alignItems="center" mb={2.5}>
+                      <LocationOnIcon color="action" fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {product.location || 'Rwanda'}
+                      </Typography>
+                    </Box>
+                    
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mt="auto">
+                      <Box>
+                        <Typography variant="h6" color="primary" fontWeight={700}>
+                          {formatPrice(product.price)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          per {product.unit || 'kg'}
+                        </Typography>
+                      </Box>
+                      <Button
+                        size="medium"
+                        variant="contained"
+                        color="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(product.id);
+                        }}
+                        endIcon={<VisibilityIcon />}
+                        sx={{ 
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          px: 2.5,
+                          py: 0.8,
+                          boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 6px 20px 0 rgba(0, 0, 0, 0.15)'
+                          }
+                        }}
+                      >
+                        View
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Fade>
           </Grid>
         ))}
       </Grid>

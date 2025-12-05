@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-2w)cga^o!9&s4)^#f&gq_90&*0fmtm#8ss-)jrx_nvcxzwes*p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # For development only. In production, specify exact domain
 
 
 # Application definition
@@ -193,6 +193,37 @@ LOGOUT_REDIRECT_URL = 'login'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # For development only. In production, specify exact origins
+CORS_ALLOW_CREDENTIALS = True
+
+# For production, use this instead:
+# CORS_ALLOWED_ORIGINS = [
+#     'http://localhost:3000',  # React default port
+#     'http://127.0.0.1:3000',
+# ]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
