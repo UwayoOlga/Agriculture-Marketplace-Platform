@@ -28,7 +28,21 @@ import {
   Divider,
   Stack,
   Tooltip,
-  Fade
+  Fade,
+  AppBar,
+  Toolbar,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Collapse,
+  Badge,
+  Avatar,
+  alpha,
+  InputBase,
+  styled,
+  ButtonBase
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -37,12 +51,91 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import MenuIcon from '@mui/icons-material/Menu';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import ShareIcon from '@mui/icons-material/Share';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CategoryIcon from '@mui/icons-material/Category';
+import PriceChangeIcon from '@mui/icons-material/PriceChange';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import apiClient from '../api/apiClient';
 import { sampleProducts, sampleCategories } from '../data/sampleProducts';
 
 // Import placeholder image
 import placeholderImage from '../assets/images/placeholder.svg';
+
+// Styled components for better organization
+const Search = styled('div')(({ theme }) => ({
+  position: 'relative',
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.common.white, 0.25),
+  },
+  marginRight: theme.spacing(2),
+  marginLeft: 0,
+  width: '100%',
+  [theme.breakpoints.up('sm')]: {
+    marginLeft: theme.spacing(3),
+    width: 'auto',
+  },
+}));
+
+const SearchIconWrapper = styled('div')(({ theme }) => ({
+  padding: theme.spacing(0, 2),
+  height: '100%',
+  position: 'absolute',
+  pointerEvents: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+  color: 'inherit',
+  '& .MuiInputBase-input': {
+    padding: theme.spacing(1, 1, 1, 0),
+    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+    transition: theme.transitions.create('width'),
+    width: '100%',
+    [theme.breakpoints.up('md')]: {
+      width: '20ch',
+    },
+  },
+}));
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  borderRadius: 12,
+  overflow: 'hidden',
+  boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+  transition: 'all 0.3s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-8px)',
+    boxShadow: '0 10px 25px 0 rgba(0,0,0,0.1)',
+    '& .product-image': {
+      transform: 'scale(1.05)'
+    }
+  },
+}));
+
+const StyledButton = styled(Button)(({ theme }) => ({
+  borderRadius: 8,
+  textTransform: 'none',
+  fontWeight: 600,
+  padding: '8px 20px',
+  boxShadow: 'none',
+  '&:hover': {
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  },
+}));
 
 // List of available product images (relative paths)
 const productImagePaths = [
@@ -81,11 +174,177 @@ const Products = () => {
     min_price: '',
     max_price: '',
     is_organic: false,
-    location: ''
+    location: '',
+    ordering: 'name'
   });
   const [showFilters, setShowFilters] = useState(!isMobile);
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState(true);
+  const [expandedPrice, setExpandedPrice] = useState(true);
+  const [wishlist, setWishlist] = useState([]);
+
+  const toggleWishlist = (productId) => {
+    setWishlist(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const drawer = (
+    <Box sx={{ p: 2, pt: 3 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h6" fontWeight={700}>
+          <FilterAltIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+          Filters
+        </Typography>
+        <Button 
+          onClick={resetFilters}
+          size="small"
+          startIcon={<ClearIcon />}
+          sx={{ textTransform: 'none' }}
+        >
+          Clear All
+        </Button>
+      </Box>
+
+      <Box mb={3}>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+          Search
+        </Typography>
+        <Search>
+          <SearchIconWrapper>
+            <SearchIcon />
+          </SearchIconWrapper>
+          <StyledInputBase
+            placeholder="Search products..."
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </Search>
+      </Box>
+
+      <Box mb={3}>
+        <Box 
+          display="flex" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          onClick={() => setExpandedCategory(!expandedCategory)}
+          sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+        >
+          <Typography variant="subtitle2" fontWeight={600}>
+            <CategoryIcon sx={{ verticalAlign: 'middle', mr: 1, fontSize: 20 }} />
+            Category
+          </Typography>
+          {expandedCategory ? <ExpandLess /> : <ExpandMore />}
+        </Box>
+        <Collapse in={expandedCategory} timeout="auto" unmountOnExit>
+          <Box mt={1} pl={3}>
+            <FormControl fullWidth size="small">
+              <Select
+                value={filters.category}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                displayEmpty
+                fullWidth
+                sx={{ mt: 1 }}
+              >
+                <MenuItem value="">All Categories</MenuItem>
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Collapse>
+      </Box>
+
+      <Box mb={3}>
+        <Box 
+          display="flex" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          onClick={() => setExpandedPrice(!expandedPrice)}
+          sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+        >
+          <Typography variant="subtitle2" fontWeight={600}>
+            <PriceChangeIcon sx={{ verticalAlign: 'middle', mr: 1, fontSize: 20 }} />
+            Price Range
+          </Typography>
+          {expandedPrice ? <ExpandLess /> : <ExpandMore />}
+        </Box>
+        <Collapse in={expandedPrice} timeout="auto" unmountOnExit>
+          <Box mt={1} pl={3}>
+            <Box display="flex" gap={1} mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                placeholder="Min"
+                value={filters.min_price}
+                onChange={(e) => handleFilterChange('min_price', e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+              <Box alignSelf="center">-</Box>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                placeholder="Max"
+                value={filters.max_price}
+                onChange={(e) => handleFilterChange('max_price', e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+              />
+            </Box>
+          </Box>
+        </Collapse>
+      </Box>
+
+      <Box mb={3}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={filters.is_organic}
+              onChange={(e) => handleFilterChange('is_organic', e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Box display="flex" alignItems="center">
+              <LocalOfferIcon sx={{ mr: 1, color: 'success.main', fontSize: 20 }} />
+              <Typography>Organic Only</Typography>
+            </Box>
+          }
+        />
+      </Box>
+
+      <Box>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+          <LocationOnIcon sx={{ verticalAlign: 'middle', mr: 1, fontSize: 20 }} />
+          Location
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Filter by location"
+          value={filters.location}
+          onChange={(e) => handleFilterChange('location', e.target.value)}
+        />
+      </Box>
+    </Box>
+  );
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -165,6 +424,16 @@ const Products = () => {
           );
         }
         
+        if (filters.ordering) {
+          filteredProducts = filteredProducts.sort((a, b) => {
+            if (filters.ordering.startsWith('-')) {
+              return b[filters.ordering.slice(1)] - a[filters.ordering.slice(1)];
+            } else {
+              return a[filters.ordering] - b[filters.ordering];
+            }
+          });
+        }
+        
         setProducts(filteredProducts);
         setTotalPages(1); 
       } catch (error) {
@@ -193,7 +462,8 @@ const Products = () => {
       min_price: '',
       max_price: '',
       is_organic: false,
-      location: ''
+      location: '',
+      ordering: 'name'
     });
     setPage(1);
   };
@@ -282,7 +552,7 @@ const Products = () => {
         {products.map((product, index) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
             <Fade in={true} timeout={500} style={{ transitionDelay: `${index * 50}ms` }}>
-              <Card 
+              <StyledCard 
                 sx={{ 
                   height: '100%', 
                   display: 'flex', 
@@ -415,7 +685,7 @@ const Products = () => {
                           per {product.unit || 'kg'}
                         </Typography>
                       </Box>
-                      <Button
+                      <StyledButton
                         size="medium"
                         variant="contained"
                         color="primary"
@@ -438,11 +708,11 @@ const Products = () => {
                         }}
                       >
                         View
-                      </Button>
+                      </StyledButton>
                     </Box>
                   </CardContent>
                 </CardActionArea>
-              </Card>
+              </StyledCard>
             </Fade>
           </Grid>
         ))}
@@ -451,149 +721,189 @@ const Products = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="h6" gutterBottom>Filters</Typography>
-            
-            <TextField
-              fullWidth
-              label="Search products"
-              variant="outlined"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              sx={{ mb: 2 }}
-              InputProps={{
-                endAdornment: filters.search && (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => handleFilterChange('search', '')}>
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                label="Category"
-              >
-                <MenuItem value="">All Categories</MenuItem>
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <TextField
-                fullWidth
-                label="Min Price"
-                type="number"
-                value={filters.min_price}
-                onChange={(e) => handleFilterChange('min_price', e.target.value)}
-              />
-              <TextField
-                fullWidth
-                label="Max Price"
-                type="number"
-                value={filters.max_price}
-                onChange={(e) => handleFilterChange('max_price', e.target.value)}
-              />
-            </Box>
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={filters.is_organic}
-                  onChange={(e) => handleFilterChange('is_organic', e.target.checked)}
-                />
-              }
-              label="Organic Only"
-              sx={{ mb: 2 }}
-            />
-
-            <TextField
-              fullWidth
-              label="Location"
-              variant="outlined"
-              value={filters.location}
-              onChange={(e) => handleFilterChange('location', e.target.value)}
-              sx={{ mb: 2 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LocationOnIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={resetFilters}
-              color="error"
-              startIcon={<ClearIcon />}
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* App Bar */}
+      <AppBar 
+        position="sticky" 
+        color="default" 
+        elevation={1}
+        sx={{ 
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Container maxWidth="xl">
+          <Toolbar disableGutters>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { md: 'none' } }}
             >
-              Clear Filters
-            </Button>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={9}>
-          {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-              <CircularProgress />
-            </Box>
-          ) : products.length > 0 ? (
-            <>
-              {renderProductCards()}
-              
-              {totalPages > 1 && (
-                <Box mt={4} display="flex" justifyContent="center">
-                  <Pagination
-                    count={totalPages}
-                    page={page}
-                    onChange={handlePageChange}
-                    color="primary"
-                    showFirstButton
-                    showLastButton
-                    sx={{ '& .MuiPaginationItem-root': { borderRadius: 1 } }}
-                  />
-                </Box>
-              )}
-            </>
-          ) : (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
-              <Typography variant="h6" color="textSecondary">
-                No products found matching your criteria
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={resetFilters}
-                sx={{ mt: 2 }}
-              >
-                Clear Filters
-              </Button>
-            </Paper>
-          )}
-          
-          <Box mt={4} textAlign="center">
-            <Typography variant="body2" color="text.secondary">
-              Note: This is a demo with sample data. To connect to a real backend, ensure your API is running and properly configured.
+              <MenuIcon />
+            </IconButton>
+            
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ 
+                flexGrow: 1, 
+                display: { xs: 'none', sm: 'block' },
+                fontWeight: 700,
+                color: 'primary.main',
+                fontSize: '1.5rem'
+              }}
+            >
+              AgroMarket
             </Typography>
-          </Box>
-        </Grid>
-      </Grid>
-    </Container>
+            
+            <Search>
+              <SearchIconWrapper>
+                <SearchIcon />
+              </SearchIconWrapper>
+              <StyledInputBase
+                placeholder="Search products..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
+            </Search>
+            
+            <Box sx={{ flexGrow: 1 }} />
+            
+            <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+              <IconButton color="inherit">
+                <Badge badgeContent={wishlist.length} color="error">
+                  <FavoriteBorderIcon />
+                </Badge>
+              </IconButton>
+              <IconButton color="inherit">
+                <Badge badgeContent={4} color="error">
+                  <ShoppingCartIcon />
+                </Badge>
+              </IconButton>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      <Box sx={{ display: 'flex', flexGrow: 1 }}>
+        {/* Desktop Sidebar */}
+        <Box
+          component="nav"
+          sx={{ 
+            width: { md: 280 }, 
+            flexShrink: { md: 0 },
+            display: { xs: 'none', md: 'block' },
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            height: 'calc(100vh - 64px)',
+            position: 'sticky',
+            top: 64,
+            overflowY: 'auto',
+          }}
+        >
+          {drawer}
+        </Box>
+
+        {/* Mobile Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: 280,
+              p: 2,
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Main Content */}
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1, 
+            p: 3,
+            background: 'linear-gradient(180deg, #f9f9f9 0%, #ffffff 100%)',
+            minHeight: 'calc(100vh - 64px)'
+          }}
+        >
+          <Container maxWidth="xl" sx={{ py: 2 }}>
+            <Box 
+              display="flex" 
+              justifyContent="space-between" 
+              alignItems="center" 
+              mb={4}
+              flexWrap="wrap"
+              gap={2}
+            >
+              <Box display="flex" alignItems="center" gap={2}>
+                <IconButton 
+                  onClick={handleDrawerToggle}
+                  sx={{ display: { md: 'none' } }}
+                  color="primary"
+                >
+                  <FilterAltIcon />
+                </IconButton>
+                <Typography variant="h5" fontWeight={700}>
+                  {filters.search ? `Results for "${filters.search}"` : 'All Products'}
+                </Typography>
+                <Chip 
+                  label={`${products.length} items`} 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined"
+                />
+              </Box>
+              <Box>
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={filters.ordering || 'name'}
+                    onChange={(e) => handleFilterChange('ordering', e.target.value)}
+                    label="Sort By"
+                  >
+                    <MenuItem value="name">Name (A-Z)</MenuItem>
+                    <MenuItem value="-name">Name (Z-A)</MenuItem>
+                    <MenuItem value="price">Price (Low to High)</MenuItem>
+                    <MenuItem value="-price">Price (High to Low)</MenuItem>
+                    <MenuItem value="-rating">Highest Rated</MenuItem>
+                    <MenuItem value="-created_at">Newest</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+
+            {renderProductCards()}
+
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={6} mb={4}>
+                <Pagination 
+                  count={totalPages} 
+                  page={page} 
+                  onChange={handlePageChange} 
+                  color="primary"
+                  shape="rounded"
+                  showFirstButton 
+                  showLastButton
+                />
+              </Box>
+            )}
+          </Container>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
