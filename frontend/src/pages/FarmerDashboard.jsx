@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -14,17 +14,19 @@ import {
   Paper,
   FormControlLabel,
   Checkbox,
-  Avatar,
-  IconButton,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { styled } from '@mui/material/styles';
+import api from '../services/api';
+import { useSnackbar } from 'notistack';
 
 const FarmerDashboard = () => {
   const { user } = useAuth();
+  const { enqueueSnackbar } = useSnackbar();
   const [showProductForm, setShowProductForm] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [productData, setProductData] = useState({
     name: '',
     description: '',
@@ -32,76 +34,57 @@ const FarmerDashboard = () => {
     stock: '',
     unit: 'kg',
     category: '',
-    is_organic: false,
-    image: null,
-    imagePreview: ''
+    is_organic: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/api/categories/');
+        if (response.data && Array.isArray(response.data)) {
+          setCategories(response.data);
+          return;
+        }
+      } catch (e) {
+        // Endpoint requires auth; fallback to empty list without breaking the form
+        console.warn('Could not load categories, falling back to manual entry.');
+      }
+      setCategories([]);
+    };
+    fetchCategories();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked, files } = e.target;
     
-    if (type === 'file') {
-      const file = files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setProductData(prev => ({
-            ...prev,
-            image: file,
-            imagePreview: reader.result
-          }));
-        };
-        reader.readAsDataURL(file);
-      }
-    } else {
-      setProductData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      }));
-    }
-  };
-
-  const handleRemoveImage = () => {
     setProductData(prev => ({
       ...prev,
-      image: null,
-      imagePreview: ''
+      [name]: type === 'checkbox' ? checked : value
     }));
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (user?.user_type !== 'FARMER') {
+      enqueueSnackbar('Only farmers can create products.', { variant: 'warning' });
+      return;
+    }
     
     try {
       setIsSubmitting(true);
-      
-      const formData = new FormData();
-      formData.append('name', productData.name);
-      formData.append('description', productData.description);
-      formData.append('price', productData.price);
-      formData.append('stock', productData.stock);
-      formData.append('unit', productData.unit);
-      formData.append('category', productData.category);
-      formData.append('is_organic', productData.is_organic);
-      
-      if (productData.image) {
-        formData.append('image', productData.image);
-      }
-      
-      // TODO: Replace with your actual API endpoint
-      // const response = await api.post('/api/products/', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data',
-      //   },
-      // });
-      
-      console.log('Product data:', formData);
+      const payload = {
+        name: productData.name,
+        description: productData.description,
+        price: Number(productData.price),
+        stock: Number(productData.stock),
+        unit: productData.unit,
+        category: productData.category || null,
+        is_organic: productData.is_organic,
+      };
+
+      await api.post('/api/products/create/', payload);
       
       // Reset form
       setProductData({
@@ -111,9 +94,7 @@ const FarmerDashboard = () => {
         stock: '',
         unit: 'kg',
         category: '',
-        is_organic: false,
-        image: null,
-        imagePreview: ''
+        is_organic: false
       });
       
       if (fileInputRef.current) {
@@ -121,10 +102,10 @@ const FarmerDashboard = () => {
       }
       
       setShowProductForm(false);
-      alert('Product added successfully!');
+      enqueueSnackbar('Product added successfully!', { variant: 'success' });
     } catch (error) {
       console.error('Error adding product:', error);
-      alert('Failed to add product. Please try again.');
+      enqueueSnackbar('Failed to add product. Please try again.', { variant: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -181,10 +162,17 @@ const FarmerDashboard = () => {
                 color="primary" 
                 startIcon={<AddIcon />}
                 onClick={() => setShowProductForm(!showProductForm)}
+                disabled={user?.user_type !== 'FARMER'}
               >
                 {showProductForm ? 'Cancel' : 'Add New Product'}
               </Button>
             </Box>
+
+            {user?.user_type !== 'FARMER' && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                You need a farmer account to create products. Please log in as a farmer.
+              </Alert>
+            )}
 
             {showProductForm && (
               <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2, mb: 3 }}>
@@ -244,6 +232,26 @@ const FarmerDashboard = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth margin="normal">
+                      <InputLabel>Category</InputLabel>
+                      <Select
+                        name="category"
+                        value={productData.category}
+                        onChange={handleInputChange}
+                        displayEmpty
+                      >
+                        <MenuItem value="">
+                          <em>Select category</em>
+                        </MenuItem>
+                        {categories.map((cat) => (
+                          <MenuItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
@@ -271,64 +279,6 @@ const FarmerDashboard = () => {
                     />
                   </Grid>
                   
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, mb: 1 }}>
-                      Product Image
-                    </Typography>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleInputChange}
-                      name="image"
-                      ref={fileInputRef}
-                      style={{ display: 'none' }}
-                      id="product-image-upload"
-                    />
-                    <label htmlFor="product-image-upload">
-                      <Button
-                        variant="outlined"
-                        component="span"
-                        startIcon={<CloudUploadIcon />}
-                        sx={{ mb: 2 }}
-                      >
-                        {productData.image ? 'Change Image' : 'Upload Image'}
-                      </Button>
-                    </label>
-                    
-                    {productData.imagePreview && (
-                      <Box sx={{ mt: 2, position: 'relative', display: 'inline-block' }}>
-                        <img 
-                          src={productData.imagePreview} 
-                          alt="Preview" 
-                          style={{ 
-                            maxWidth: '200px', 
-                            maxHeight: '200px',
-                            borderRadius: '4px',
-                            border: '1px solid #ddd'
-                          }} 
-                        />
-                        <IconButton
-                          size="small"
-                          onClick={handleRemoveImage}
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                            '&:hover': {
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            },
-                          }}
-                        >
-                          <DeleteIcon color="error" fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    )}
-                    
-                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                      Recommended size: 800x600px. Max file size: 5MB
-                    </Typography>
-                  </Grid>
                   <Grid item xs={12}>
                     <Button 
                       type="submit" 

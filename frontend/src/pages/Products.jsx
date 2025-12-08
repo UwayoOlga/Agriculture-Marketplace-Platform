@@ -161,6 +161,9 @@ const getRandomProductImage = (id) => {
   return `/src/assets/images/${productImagePaths[index]}`;
 };
 
+// Backend pagination size; align with DRF PAGE_SIZE (settings.py)
+const PAGE_SIZE = 12;
+
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,6 +183,8 @@ const Products = () => {
   const [showFilters, setShowFilters] = useState(!isMobile);
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
+  const [backendHealthy, setBackendHealthy] = useState(true);
+  const [usingSampleData, setUsingSampleData] = useState(false);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(true);
@@ -352,13 +357,16 @@ const Products = () => {
         const response = await apiClient.get('/api/categories/');
         if (response.data && Array.isArray(response.data)) {
           setCategories(response.data);
+          setBackendHealthy(true);
           return;
         }
       } catch (error) {
-        console.log('Using sample categories');
+        // Category endpoint requires auth; fallback gracefully
+        setBackendHealthy(false);
       }
       
       setCategories(sampleCategories);
+      setUsingSampleData(true);
     };
     
     fetchCategories();
@@ -368,72 +376,85 @@ const Products = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        
-        try {
-          const queryParams = new URLSearchParams();
-          Object.entries(filters).forEach(([key, value]) => {
-            if (value) queryParams.append(key, value);
-          });
-          queryParams.append('page', page);
+        const queryParams = new URLSearchParams();
+        const endpoint = filters.search ? '/api/products/search/' : '/api/products/';
 
-          const response = await apiClient.get(`/api/products/?${queryParams}`);
-          if (response.data && response.data.results) {
-            setProducts(response.data.results);
-            setTotalPages(response.data.total_pages || 1);
-            return;
-          }
-        } catch (error) {
-          console.log('Using sample products data');
+        if (filters.search) queryParams.append('query', filters.search);
+        if (filters.category) queryParams.append('category', filters.category);
+        if (filters.min_price) queryParams.append('min_price', filters.min_price);
+        if (filters.max_price) queryParams.append('max_price', filters.max_price);
+        if (filters.is_organic) queryParams.append('is_organic', 'true');
+        if (filters.location) queryParams.append('location', filters.location);
+        queryParams.append('page', page);
+        queryParams.append('page_size', PAGE_SIZE);
+
+        const response = await apiClient.get(`${endpoint}?${queryParams.toString()}`);
+        const data = response.data;
+
+        if (data && Array.isArray(data.results)) {
+          setProducts(data.results);
+          const totalCount = data.count ?? data.results.length;
+          const pages = data.count ? Math.max(1, Math.ceil(data.count / PAGE_SIZE)) : (data.total_pages || 1);
+          setTotalPages(pages || 1);
+          setBackendHealthy(true);
+          setUsingSampleData(false);
+          return;
         }
-        
+
+        // Fallback to sample data (offline/dev)
+        setBackendHealthy(false);
+        setUsingSampleData(true);
+
         let filteredProducts = [...sampleProducts];
-        
+
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           filteredProducts = filteredProducts.filter(p => 
-            p.name.toLowerCase().includes(searchLower) || 
-            p.description.toLowerCase().includes(searchLower)
+            (p.name || '').toLowerCase().includes(searchLower) || 
+            (p.description || '').toLowerCase().includes(searchLower)
           );
         }
-        
+
         if (filters.category) {
           filteredProducts = filteredProducts.filter(
-            p => p.category.id.toString() === filters.category.toString()
+            (p.category?.id ?? p.category)?.toString() === filters.category.toString()
           );
         }
-        
+
         if (filters.min_price) {
           filteredProducts = filteredProducts.filter(
-            p => p.price >= parseFloat(filters.min_price)
+            Number(p.price) >= Number(filters.min_price)
           );
         }
-        
+
         if (filters.max_price) {
           filteredProducts = filteredProducts.filter(
-            p => p.price <= parseFloat(filters.max_price)
+            Number(p.price) <= Number(filters.max_price)
           );
         }
-        
+
         if (filters.is_organic) {
           filteredProducts = filteredProducts.filter(p => p.is_organic);
         }
-        
+
         if (filters.location) {
+          const locLower = filters.location.toLowerCase();
           filteredProducts = filteredProducts.filter(
-            p => p.location.toLowerCase().includes(filters.location.toLowerCase())
+            ((p.location || p.farm_location || '')).toLowerCase().includes(locLower)
           );
         }
-        
+
         if (filters.ordering) {
+          const key = filters.ordering.startsWith('-') ? filters.ordering.slice(1) : filters.ordering;
+          const dir = filters.ordering.startsWith('-') ? -1 : 1;
           filteredProducts = filteredProducts.sort((a, b) => {
-            if (filters.ordering.startsWith('-')) {
-              return b[filters.ordering.slice(1)] - a[filters.ordering.slice(1)];
-            } else {
-              return a[filters.ordering] - b[filters.ordering];
-            }
+            const av = a[key] ?? 0;
+            const bv = b[key] ?? 0;
+            if (typeof av === 'string') return av.localeCompare(bv) * dir;
+            return (av - bv) * dir;
           });
         }
-        
+
         setProducts(filteredProducts);
         setTotalPages(1); 
       } catch (error) {
