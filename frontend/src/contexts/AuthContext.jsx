@@ -69,12 +69,12 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           setIsAuthenticated(true);
           message.success('Login successful!');
-          return { success: true };
+          return { success: true, user: userData };
         } catch (profileError) {
           console.error('Profile fetch failed, but login was successful:', profileError);
           // Still consider the user authenticated even if profile fetch fails
           setIsAuthenticated(true);
-          return { success: true };
+          return { success: true, user: null };
         }
       }
       
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Registration failed:', error);
       return { 
         success: false, 
-        error: error.response?.data || { message: 'Registration failed' } 
+        error: error.message || error.response?.data || { message: 'Registration failed' } 
       };
     }
   };

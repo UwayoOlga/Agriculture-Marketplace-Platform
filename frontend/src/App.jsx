@@ -10,6 +10,7 @@ import Products from './pages/Products';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import FarmerDashboard from './pages/FarmerDashboard';
+import FarmerOrders from './pages/FarmerOrders';
 import Forum from './pages/Forum';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
@@ -94,6 +95,14 @@ const AppContent = () => {
           element={
             <PrivateRoute>
               <FarmerDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="farmer-orders"
+          element={
+            <PrivateRoute>
+              <FarmerOrders />
             </PrivateRoute>
           }
         />

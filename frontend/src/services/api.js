@@ -132,7 +132,9 @@ api.interceptors.request.use(
       '/token/',
       '/register/',
       '/password-reset/request/',
-      '/password-reset/confirm/'
+      '/password-reset/confirm/',
+      '/categories/',
+      '/products/'
     ].some(path => config.url.includes(path));
 
     if (skipAuth) return config;
@@ -140,7 +142,7 @@ api.interceptors.request.use(
     const accessToken = storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     const refreshToken = storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
 
-    // If no tokens, redirect to login
+    // If no tokens and endpoint requires auth, redirect to login
     if (!accessToken || !refreshToken) {
       clearAuthAndRedirect('Please log in to continue');
       return Promise.reject(new Error('No authentication tokens found'));
@@ -190,7 +192,7 @@ api.interceptors.request.use(
       }
     }
 
-    // Add auth header
+    // Add auth header if we have a token
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -336,8 +338,13 @@ export const authAPI = {
       message.success('Registration successful! Please log in.');
       return response.data;
     } catch (error) {
-      const errorMessage = error.response?.data?.detail || 'Registration failed. Please try again.';
-      throw new Error(errorMessage);
+      // Prefer field-level validation messages if provided by DRF
+      const data = error.response?.data;
+      if (data && typeof data === 'object') {
+        const fieldErrors = Object.values(data).flat().join(' ');
+        throw new Error(fieldErrors || data.detail || 'Registration failed. Please try again.');
+      }
+      throw new Error(error.response?.data?.detail || 'Registration failed. Please try again.');
     }
   },
   

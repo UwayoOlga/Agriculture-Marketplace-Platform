@@ -66,12 +66,14 @@ const Register = () => {
         state: { message: 'Registration successful! Please log in.' } 
       });
     } else {
-      // Handle validation errors from the backend
-      if (typeof result.error === 'object') {
-        const errorMsgs = Object.values(result.error).flat().join(' ');
+      const err = result.error;
+      if (typeof err === 'string') {
+        setError(err);
+      } else if (err && typeof err === 'object') {
+        const errorMsgs = Object.values(err).flat().join(' ');
         setError(errorMsgs || 'Registration failed');
       } else {
-        setError(result.error || 'Registration failed');
+        setError('Registration failed');
       }
     }
   };

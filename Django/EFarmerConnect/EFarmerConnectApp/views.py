@@ -143,6 +143,8 @@ class PasswordResetConfirmView(APIView):
 
 # List all products
 class ProductListView(APIView):
+    permission_classes = [AllowAny]  # Allow both authenticated and unauthenticated users
+    
     def get(self, request):
         products = Product.objects.all()
 
@@ -278,7 +280,7 @@ class ProductSearchView(APIView):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Allow unauthenticated access to view categories
 
 # Cart Management
 class CartView(APIView):

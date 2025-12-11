@@ -64,7 +64,7 @@ schema_view = get_schema_view(
 
 # Create a router for ViewSets
 router = DefaultRouter()
-router.register(r'api/categories', CategoryViewSet, basename='category')
+router.register(r'categories', CategoryViewSet, basename='category')
 
 urlpatterns = [
     path('', api_root, name='api_root'),
@@ -116,7 +116,8 @@ urlpatterns = [
     # Notification endpoints
     path('api/notifications/', NotificationView.as_view(), name='notifications'),
     path('api/notifications/sms/', SMSNotificationView.as_view(), name='sms_notifications'),
-] + router.urls
+    path('api/', include(router.urls)),
+]
 
 # Swagger/OpenAPI
 urlpatterns += [

@@ -56,8 +56,10 @@ const Login = () => {
       const result = await login(username, password);
       
       if (result.success) {
+        const role = result.user?.user_type;
+        const destination = role === 'FARMER' ? '/farmer-dashboard' : '/products';
         // Use replace instead of navigate to prevent going back to login page
-        navigate('/products', { replace: true });
+        navigate(destination, { replace: true });
       } else {
         setError(result.error || 'Login failed. Please check your credentials.');
       }
