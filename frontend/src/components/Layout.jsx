@@ -22,6 +22,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { useCart } from '../contexts/CartContext';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const Layout = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -68,6 +69,7 @@ const Layout = () => {
   ];
 
   if (user?.user_type === 'FARMER') {
+    userMenuItems.push({ title: 'Sales Report', action: () => navigate('/sales-report') });
     userMenuItems.push({ title: 'My Products', action: () => navigate('/farmer/products') });
     userMenuItems.push({ title: 'Farmer Dashboard', action: () => navigate('/farmer-dashboard') });
   }
@@ -174,6 +176,9 @@ const Layout = () => {
             <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center' }}>
               {isAuthenticated ? (
                 <>
+                  {/* Notifications - show for farmers */}
+                  {user?.user_type === 'FARMER' && <NotificationsDropdown />}
+                  
                   <IconButton 
                     color="inherit" 
                     aria-label="cart" 

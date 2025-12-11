@@ -30,6 +30,13 @@ from .payment import get_payment_provider, PaymentException
 import uuid
 from django.utils import timezone as dj_timezone
 from django.db.models import Prefetch
+from io import BytesIO
+from datetime import datetime, timedelta
+from decimal import Decimal
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 # Authentication and User Profile Views
 class RegisterView(APIView):
@@ -168,7 +175,11 @@ class ProductListView(APIView):
             if farmer_id == 'me' and request.user.is_authenticated:
                 products = products.filter(farmer=request.user)
             else:
-                products = products.filter(farmer_id=farmer_id)
+                try:
+                    farmer_id_int = int(farmer_id)
+                    products = products.filter(farmer_id=farmer_id_int)
+                except (ValueError, TypeError):
+                    pass
         if is_organic is not None:
             if is_organic.lower() in ['1', 'true', 'yes']:
                 products = products.filter(is_organic=True)
@@ -264,7 +275,11 @@ class ProductSearchView(APIView):
             if farmer_id == 'me' and request.user.is_authenticated:
                 products = products.filter(farmer=request.user)
             else:
-                products = products.filter(farmer_id=farmer_id)
+                try:
+                    farmer_id_int = int(farmer_id)
+                    products = products.filter(farmer_id=farmer_id_int)
+                except (ValueError, TypeError):
+                    pass
         if is_organic is not None:
             if is_organic.lower() in ['1', 'true', 'yes']:
                 products = products.filter(is_organic=True)
@@ -701,3 +716,90 @@ class SMSNotificationView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Sales Report PDF for Farmers
+class SalesReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Only farmers can generate reports
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can generate sales reports.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Accept optional start_date and end_date as YYYY-MM-DD
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        try:
+            if start_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            else:
+                start_date = (datetime.utcnow() - timedelta(days=30)).date()
+            if end_date_str:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            else:
+                end_date = datetime.utcnow().date()
+        except Exception:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Query order items for products that belong to this farmer within date range
+        items = OrderItem.objects.filter(
+            product__farmer=request.user,
+            order__order_date__date__gte=start_date,
+            order__order_date__date__lte=end_date,
+        ).select_related('order', 'product')
+
+        # Build table rows
+        rows = []
+        total = Decimal('0.00')
+        for it in items:
+            order_date = it.order.order_date.date().isoformat()
+            order_id = it.order.id
+            product_name = it.product.name or 'Unnamed'
+            qty = it.quantity
+            unit_price = it.price_at_time
+            subtotal = (Decimal(qty) * Decimal(unit_price))
+            total += subtotal
+            rows.append([order_date, str(order_id), product_name, str(qty), f"{unit_price}", f"{subtotal}"])
+
+        # Prepare PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        title = Paragraph(f"Sales Report for {request.user.username}", styles['Title'])
+        period = Paragraph(f"Period: {start_date.isoformat()} to {end_date.isoformat()}", styles['Normal'])
+        elements.append(title)
+        elements.append(Spacer(1, 12))
+        elements.append(period)
+        elements.append(Spacer(1, 12))
+
+        if rows:
+            table_data = [["Date", "Order #", "Product", "Qty", "Unit Price", "Subtotal"]] + rows
+        else:
+            table_data = [["Message"], ["No sales found for the selected period."]]
+
+        table = Table(table_data, repeatRows=1)
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (3, 0), (4, -1), 'RIGHT'),
+        ])
+        table.setStyle(table_style)
+        elements.append(table)
+        elements.append(Spacer(1, 12))
+
+        total_paragraph = Paragraph(f"<b>Total sales: RWF {total}</b>", styles['Heading2'])
+        elements.append(total_paragraph)
+
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+
+        filename = f"sales_report_{request.user.username}_{start_date.isoformat()}_{end_date.isoformat()}.pdf"
+        response = Response(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response

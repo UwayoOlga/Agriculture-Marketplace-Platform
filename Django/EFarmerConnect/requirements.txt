@@ -9,3 +9,4 @@ django-rest-auth>=0.9.5
 djangorestframework-simplejwt>=5.2.2
 django-mpesa>=2.0.0
 python-dotenv>=0.21.0
+reportlab>=4.0.0

@@ -20,6 +20,7 @@ import {
   Chip,
   Grid
 } from '@mui/material';
+
 import { Add as AddIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -237,7 +238,7 @@ const FarmerDashboard = () => {
       
       <Grid container spacing={3}>
         {/* Stats Cards */}
-        <Grid item xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -248,7 +249,7 @@ const FarmerDashboard = () => {
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -259,7 +260,7 @@ const FarmerDashboard = () => {
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -270,8 +271,7 @@ const FarmerDashboard = () => {
           </Card>
         </Grid>
 
-        {/* Add Product Section */}
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
               <Typography variant="h6">Your Products</Typography>
@@ -304,7 +304,7 @@ const FarmerDashboard = () => {
             {showProductForm && (
               <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2, mb: 3 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Product Name"
@@ -315,7 +315,7 @@ const FarmerDashboard = () => {
                       margin="normal"
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Price"
@@ -328,7 +328,7 @@ const FarmerDashboard = () => {
                       inputProps={{ min: 0, step: 0.01 }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Stock"
@@ -341,7 +341,7 @@ const FarmerDashboard = () => {
                       inputProps={{ min: 0 }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <FormControl fullWidth margin="normal">
                       <InputLabel>Unit</InputLabel>
                       <Select
@@ -359,7 +359,7 @@ const FarmerDashboard = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <FormControl fullWidth margin="normal">
                       <InputLabel>Category</InputLabel>
                       <Select
@@ -379,7 +379,7 @@ const FarmerDashboard = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                     <TextField
                       fullWidth
                       label="Description"
@@ -392,7 +392,7 @@ const FarmerDashboard = () => {
                     />
                   </Grid>
                   
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                     <FormControlLabel
                       control={
                         <Checkbox
@@ -406,7 +406,7 @@ const FarmerDashboard = () => {
                     />
                   </Grid>
                   
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                     <Button 
                       type="submit" 
                       variant="contained" 
@@ -431,7 +431,7 @@ const FarmerDashboard = () => {
               ) : (
                 <Grid container spacing={2}>
                   {products.map((p) => (
-                    <Grid item xs={12} sm={6} md={4} key={p.id}>
+                    <Grid xs={12} sm={6} md={4} key={p.id}>
                       <ProductCard product={p} />
                     </Grid>
                   ))}
@@ -446,4 +446,3 @@ const FarmerDashboard = () => {
 };
 
 export default FarmerDashboard;
-

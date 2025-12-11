@@ -22,7 +22,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from EFarmerConnectApp.views import (
     ProductListView, ProductCreateView, ProductDetailView,
-    ProductUpdateView, ProductDeleteView, ProductSearchView,
+    ProductUpdateView, ProductDeleteView, ProductSearchView, SalesReportView,
     RegisterView, CustomTokenObtainPairView, UserProfileView,
     ChangePasswordView, PasswordResetRequestView, PasswordResetConfirmView,
     CategoryViewSet, CartView, CartItemView,
@@ -102,6 +102,7 @@ urlpatterns = [
     # Farmer order management
     path('api/farmer/orders/', FarmerOrderListView.as_view(), name='farmer_orders'),
     path('api/farmer/orders/<int:order_id>/status/', FarmerOrderStatusView.as_view(), name='farmer_order_status'),
+    path('api/farmer/sales-report/', SalesReportView.as_view(), name='sales_report'),
     
     # Community & Forum endpoints
     path('api/forum/posts/', ForumPostView.as_view(), name='forum_posts'),

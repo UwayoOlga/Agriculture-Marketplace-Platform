@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box, CircularProgress } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -12,6 +13,7 @@ import Profile from './pages/Profile';
 import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerOrders from './pages/FarmerOrders';
 import Forum from './pages/Forum';
+import SalesReport from './pages/SalesReport';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
 
@@ -106,6 +108,14 @@ const AppContent = () => {
             </PrivateRoute>
           }
         />
+        <Route
+          path="sales-report"
+          element={
+            <PrivateRoute>
+              <SalesReport />
+            </PrivateRoute>
+          }
+        />
 
         {/* Additional routes can go here (cart, orders, etc.) */}
       </Route>
@@ -122,11 +132,13 @@ const App = () => {
       <CssBaseline />
       <SnackbarProvider maxSnack={3}>
         <AuthProvider>
-          <CartProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </CartProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </CartProvider>
+          </NotificationProvider>
         </AuthProvider>
       </SnackbarProvider>
     </ThemeProvider>
