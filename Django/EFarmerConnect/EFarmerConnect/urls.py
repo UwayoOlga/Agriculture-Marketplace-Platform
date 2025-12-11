@@ -31,6 +31,7 @@ from EFarmerConnectApp.views import (
     MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
+from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -97,6 +98,10 @@ urlpatterns = [
     path('api/orders/', OrderView.as_view(), name='orders'),
     path('api/orders/<int:order_id>/payment/', PaymentView.as_view(), name='order_payment'),
     path('api/orders/<int:order_id>/delivery/', DeliveryLogisticsView.as_view(), name='order_delivery'),
+
+    # Farmer order management
+    path('api/farmer/orders/', FarmerOrderListView.as_view(), name='farmer_orders'),
+    path('api/farmer/orders/<int:order_id>/status/', FarmerOrderStatusView.as_view(), name='farmer_order_status'),
     
     # Community & Forum endpoints
     path('api/forum/posts/', ForumPostView.as_view(), name='forum_posts'),

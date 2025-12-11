@@ -29,6 +29,7 @@ from .serializers_season import CropCalendarSerializer
 from .payment import get_payment_provider, PaymentException
 import uuid
 from django.utils import timezone as dj_timezone
+from django.db.models import Prefetch
 
 # Authentication and User Profile Views
 class RegisterView(APIView):
@@ -151,6 +152,7 @@ class ProductListView(APIView):
         max_price = request.query_params.get('max_price')
         location = request.query_params.get('location')
         is_organic = request.query_params.get('is_organic')
+        farmer_id = request.query_params.get('farmer')
 
         if category_id:
             products = products.filter(category_id=category_id)
@@ -160,6 +162,11 @@ class ProductListView(APIView):
             products = products.filter(price__lte=max_price)
         if location:
             products = products.filter(farm_location__icontains=location)
+        if farmer_id:
+            if farmer_id == 'me' and request.user.is_authenticated:
+                products = products.filter(farmer=request.user)
+            else:
+                products = products.filter(farmer_id=farmer_id)
         if is_organic is not None:
             if is_organic.lower() in ['1', 'true', 'yes']:
                 products = products.filter(is_organic=True)
@@ -241,6 +248,7 @@ class ProductSearchView(APIView):
         max_price = request.query_params.get('max_price')
         location = request.query_params.get('location')
         is_organic = request.query_params.get('is_organic')
+        farmer_id = request.query_params.get('farmer')
 
         if category_id:
             products = products.filter(category_id=category_id)
@@ -250,6 +258,11 @@ class ProductSearchView(APIView):
             products = products.filter(price__lte=max_price)
         if location:
             products = products.filter(farm_location__icontains=location)
+        if farmer_id:
+            if farmer_id == 'me' and request.user.is_authenticated:
+                products = products.filter(farmer=request.user)
+            else:
+                products = products.filter(farmer_id=farmer_id)
         if is_organic is not None:
             if is_organic.lower() in ['1', 'true', 'yes']:
                 products = products.filter(is_organic=True)
@@ -358,6 +371,88 @@ class OrderView(APIView):
 
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Farmer-facing order management
+class FarmerOrderListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can view incoming orders.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Orders that include at least one item belonging to this farmer
+        orders = (
+            Order.objects
+            .filter(items__product__farmer=request.user)
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=OrderItem.objects.select_related('product', 'product__farmer'),
+                )
+            )
+            .select_related('buyer')
+            .distinct()
+            .order_by('-order_date')
+        )
+
+        payload = []
+        for order in orders:
+            # Filter items to only those belonging to this farmer
+            farmer_items = [item for item in order.items.all() if item.product.farmer_id == request.user.id]
+            item_data = OrderItemSerializer(farmer_items, many=True).data
+            payload.append({
+                'id': order.id,
+                'order_date': order.order_date,
+                'status': order.status,
+                'shipping_address': order.shipping_address,
+                'delivery_notes': order.delivery_notes,
+                'total_amount': order.total_amount,
+                'buyer': {
+                    'id': order.buyer_id,
+                    'username': getattr(order.buyer, 'username', None),
+                    'phone_number': getattr(order.buyer, 'phone_number', None),
+                },
+                'items': item_data,
+            })
+
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class FarmerOrderStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, order_id):
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can manage incoming orders.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Ensure the order contains at least one item from this farmer
+        try:
+            order = Order.objects.filter(items__product__farmer=request.user).distinct().get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found for this farmer.'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        rejection_reason = request.data.get('rejection_reason')
+
+        allowed_statuses = {'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED'}
+        if new_status not in allowed_statuses:
+            return Response({'error': 'Invalid status for farmer action.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        order.status = new_status
+        if new_status == 'REJECTED':
+            order.rejection_reason = rejection_reason or 'Rejected by farmer'
+        order.save()
+
+        # Notify buyer
+        Notification.objects.create(
+            user=order.buyer,
+            type='ORDER',
+            title=f'Order #{order.id} {new_status.lower()}',
+            message=rejection_reason or f'Order has been {new_status.lower()} by the farmer.',
+        )
+
+        return Response({'detail': 'Order status updated.', 'status': order.status}, status=status.HTTP_200_OK)
 
 # Payment Processing
 class PaymentView(APIView):
