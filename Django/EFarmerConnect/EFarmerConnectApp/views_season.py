@@ -15,12 +15,22 @@ class CropCalendarView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        calendars = CropCalendar.objects.filter(farmer=request.user)
+        calendars = CropCalendar.objects.all()
+
+        # Optional filters for convenience
+        season = request.query_params.get('season')
+        crop = request.query_params.get('crop')
+        if season:
+            calendars = calendars.filter(season_id=season)
+        if crop:
+            calendars = calendars.filter(crop=crop)
+
         serializer = CropCalendarSerializer(calendars, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = CropCalendarSerializer(data={**request.data, 'farmer': request.user.id})
+        # CropCalendar is a global schedule, no per-user binding required
+        serializer = CropCalendarSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -31,7 +41,9 @@ class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_staff or request.user.user_type == 'ADMIN'
+        user = request.user
+        # Anonymous users should fail fast without attribute errors
+        return bool(getattr(user, 'is_staff', False) or getattr(user, 'user_type', '') == 'ADMIN')
 
 class AgriculturalSeasonViewSet(viewsets.ModelViewSet):
     queryset = AgriculturalSeason.objects.all()

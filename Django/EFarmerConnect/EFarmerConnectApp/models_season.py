@@ -69,6 +69,9 @@ class CropCalendar(models.Model):
             raise ValidationError("Planting period must end before harvest period starts.")
 
 class FarmerSeasonPlan(models.Model):
+    # Reuse the same crop choices as the master crop calendar to avoid divergence
+    PRIORITY_CROPS = CropCalendar.PRIORITY_CROPS
+
     farmer = models.ForeignKey('User', on_delete=models.CASCADE, limit_choices_to={'user_type': 'FARMER'})
     season = models.ForeignKey(AgriculturalSeason, on_delete=models.CASCADE)
     crop = models.CharField(max_length=20, choices=CropCalendar.PRIORITY_CROPS)

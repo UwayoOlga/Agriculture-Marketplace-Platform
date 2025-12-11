@@ -311,7 +311,7 @@ class OrderView(APIView):
         if getattr(request.user, 'user_type', None) != 'BUYER':
             return Response({'error': 'Only buyers can place orders.'}, status=status.HTTP_403_FORBIDDEN)
 
-        cart = Cart.objects.get(buyer=request.user)
+        cart, _ = Cart.objects.get_or_create(buyer=request.user)
         cart_items = list(cart.cartitem_set.select_related('product').all())
         if not cart_items:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
