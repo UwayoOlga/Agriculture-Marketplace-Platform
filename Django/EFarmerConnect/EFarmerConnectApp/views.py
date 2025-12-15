@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework import status, viewsets
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Q
 from django.utils import timezone
@@ -197,7 +198,7 @@ class ProductListView(APIView):
         # Pagination
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(products, request)
-        serializer = ProductSerializer(page, many=True)
+        serializer = ProductSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
 # Add a new product
@@ -224,7 +225,7 @@ class ProductCreateView(APIView):
                 )
             
             # Return updated product with images
-            updated_serializer = ProductSerializer(product)
+            updated_serializer = ProductSerializer(product, context={'request': request})
             return Response(updated_serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
@@ -234,7 +235,7 @@ class ProductDetailView(APIView):
     def get(self, request, pk):
         try:
             product = Product.objects.get(pk=pk)
-            serializer = ProductSerializer(product)
+            serializer = ProductSerializer(product, context={'request': request})
             return Response(serializer.data)
         except Product.DoesNotExist:
             return Response({'error': 'Product not found'}, status=404)
@@ -249,7 +250,7 @@ class ProductUpdateView(APIView):
             # Only the owning farmer (or admin) can update
             if product.farmer != request.user and not request.user.is_staff:
                 return Response({'error': 'You are not allowed to update this product.'}, status=status.HTTP_403_FORBIDDEN)
-            serializer = ProductSerializer(product, data=request.data)
+            serializer = ProductSerializer(product, data=request.data, context={'request': request})
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)
@@ -318,7 +319,7 @@ class ProductSearchView(APIView):
 
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(products, request)
-        serializer = ProductSerializer(page, many=True)
+        serializer = ProductSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
 # Category Views
@@ -335,7 +336,7 @@ class CartView(APIView):
         if getattr(request.user, 'user_type', None) != 'BUYER':
             return Response({'error': 'Only buyers have a shopping cart.'}, status=status.HTTP_403_FORBIDDEN)
         cart, created = Cart.objects.get_or_create(buyer=request.user)
-        serializer = CartSerializer(cart)
+        serializer = CartSerializer(cart, context={'request': request})
         return Response(serializer.data)
 
 class CartItemView(APIView):
@@ -345,9 +346,21 @@ class CartItemView(APIView):
         if getattr(request.user, 'user_type', None) != 'BUYER':
             return Response({'error': 'Only buyers can add items to a cart.'}, status=status.HTTP_403_FORBIDDEN)
         cart, created = Cart.objects.get_or_create(buyer=request.user)
-        serializer = CartItemSerializer(data={**request.data, 'cart': cart.id})
+        serializer = CartItemSerializer(data={**request.data, 'cart': cart.id}, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
+            cart_item = serializer.save()
+            
+            # Notify Farmer that their product was added to a cart
+            try:
+                Notification.objects.create(
+                    user=cart_item.product.farmer,
+                    type='SYSTEM',
+                    title='Item Added to Cart',
+                    message=f"A buyer added '{cart_item.product.name}' to their cart."
+                )
+            except Exception:
+                pass
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -364,7 +377,7 @@ class OrderView(APIView):
         if getattr(request.user, 'user_type', None) != 'BUYER':
             return Response({'error': 'Only buyers can view orders.'}, status=status.HTTP_403_FORBIDDEN)
         orders = Order.objects.filter(buyer=request.user)
-        serializer = OrderSerializer(orders, many=True)
+        serializer = OrderSerializer(orders, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
@@ -444,7 +457,7 @@ class OrderView(APIView):
                 message='Your order has been placed and is pending processing.',
             )
 
-            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+            return Response(OrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -475,7 +488,7 @@ class FarmerOrderListView(APIView):
         for order in orders:
             # Filter items to only those belonging to this farmer
             farmer_items = [item for item in order.items.all() if item.product.farmer_id == request.user.id]
-            item_data = OrderItemSerializer(farmer_items, many=True).data
+            item_data = OrderItemSerializer(farmer_items, many=True, context={'request': request}).data
             payload.append({
                 'id': order.id,
                 'order_date': order.order_date,
@@ -503,31 +516,53 @@ class FarmerOrderStatusView(APIView):
 
         # Ensure the order contains at least one item from this farmer
         try:
+            # For simplicity in this multi-vendor setup, allowing any involved farmer to act on the order
+            # In a real system, we might split sub-orders per farmer.
             order = Order.objects.filter(items__product__farmer=request.user).distinct().get(id=order_id)
         except Order.DoesNotExist:
             return Response({'error': 'Order not found for this farmer.'}, status=status.HTTP_404_NOT_FOUND)
 
-        new_status = request.data.get('status')
+        action = request.data.get('action') # 'accept' or 'reject'
         rejection_reason = request.data.get('rejection_reason')
 
-        allowed_statuses = {'PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED'}
-        if new_status not in allowed_statuses:
-            return Response({'error': 'Invalid status for farmer action.'}, status=status.HTTP_400_BAD_REQUEST)
+        if action == 'accept':
+            if order.status != 'PENDING_CONFIRMATION':
+                return Response({'error': 'Order is not pending confirmation.'}, status=status.HTTP_400_BAD_REQUEST)
+            order.status = 'PENDING_PAYMENT'
+            order.save()
+            
+            Notification.objects.create(
+                user=order.buyer,
+                type='ORDER',
+                title=f'Order #{order.id} Accepted',
+                message='Your order has been accepted by the farmer. Please proceed to payment.',
+            )
+            return Response({'detail': 'Order accepted.', 'status': order.status})
 
-        order.status = new_status
-        if new_status == 'REJECTED':
+        elif action == 'reject':
+            if order.status in ['PAID', 'COMPLETED', 'CANCELLED', 'REJECTED']:
+                 return Response({'error': 'Cannot reject order in current status.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            order.status = 'REJECTED'
             order.rejection_reason = rejection_reason or 'Rejected by farmer'
-        order.save()
+            order.save()
 
-        # Notify buyer
-        Notification.objects.create(
-            user=order.buyer,
-            type='ORDER',
-            title=f'Order #{order.id} {new_status.lower()}',
-            message=rejection_reason or f'Order has been {new_status.lower()} by the farmer.',
-        )
+            # Restore stock
+            for item in order.items.all():
+                product = item.product
+                product.stock = (product.stock or 0) + item.quantity
+                product.save()
 
-        return Response({'detail': 'Order status updated.', 'status': order.status}, status=status.HTTP_200_OK)
+            Notification.objects.create(
+                user=order.buyer,
+                type='ORDER',
+                title=f'Order #{order.id} Rejected',
+                message=rejection_reason or 'The farmer has rejected your order request.',
+            )
+            return Response({'detail': 'Order rejected and stock restored.', 'status': order.status})
+
+        else:
+            return Response({'error': 'Invalid action. Use "accept" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
 
 # Payment Processing
 class PaymentView(APIView):
@@ -608,20 +643,31 @@ class ReviewView(APIView):
 # Forum Management
 class ForumPostView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
         posts = ForumPost.objects.all().order_by('-created_at')
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(posts, request)
-        serializer = ForumPostSerializer(page, many=True)
+        serializer = ForumPostSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = ForumPostSerializer(data={**request.data, 'author': request.user.id})
+        serializer = ForumPostSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(author=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ForumPostDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        post = get_object_or_404(ForumPost, id=pk)
+        if post.author != request.user:
+            return Response({'error': 'You can only delete your own posts'}, status=status.HTTP_403_FORBIDDEN)
+        post.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class CommentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -634,6 +680,25 @@ class CommentView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+    def get(self, request, post_id):
+        comments = Comment.objects.filter(post_id=post_id).order_by('created_at')
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class LikePostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        post = get_object_or_404(ForumPost, id=post_id)
+        user = request.user
+        if post.likes.filter(id=user.id).exists():
+            post.likes.remove(user)
+            liked = False
+        else:
+            post.likes.add(user)
+            liked = True
+        return Response({'liked': liked, 'likes_count': post.likes.count()})
 # Agricultural Features
 class WeatherAlertView(APIView):
     permission_classes = [IsAdminUser]

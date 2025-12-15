@@ -42,9 +42,9 @@ import {
   alpha,
   InputBase,
   styled,
-  ButtonBase
+  ButtonBase,
+  Grid
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StoreIcon from '@mui/icons-material/Store';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -579,7 +579,7 @@ const Products = () => {
     return (
       <Grid container spacing={3}>
         {products.map((product, index) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={product.id}>
             <Fade in={true} timeout={500} style={{ transitionDelay: `${index * 50}ms` }}>
               <StyledCard
                 sx={{
@@ -704,43 +704,43 @@ const Products = () => {
                     </Box>
 
                     <Divider sx={{ my: 2 }} />
-
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mt="auto">
-                      <Box>
-                        <Typography variant="h6" color="primary" fontWeight={700}>
-                          {formatPrice(product.price)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          per {product.unit || 'kg'}
-                        </Typography>
-                      </Box>
-                      <StyledButton
-                        size="medium"
-                        variant="contained"
-                        color="primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(product.id);
-                        }}
-                        endIcon={<VisibilityIcon />}
-                        sx={{
-                          borderRadius: 2,
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          px: 2.5,
-                          py: 0.8,
-                          boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 6px 20px 0 rgba(0, 0, 0, 0.15)'
-                          }
-                        }}
-                      >
-                        View
-                      </StyledButton>
-                    </Box>
                   </CardContent>
                 </CardActionArea>
+
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={3} pt={0} mt="auto">
+                  <Box>
+                    <Typography variant="h6" color="primary" fontWeight={700}>
+                      {formatPrice(product.price)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      per {product.unit || 'kg'}
+                    </Typography>
+                  </Box>
+                  <StyledButton
+                    size="medium"
+                    variant="contained"
+                    color="primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewDetails(product.id);
+                    }}
+                    endIcon={<VisibilityIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      px: 2.5,
+                      py: 0.8,
+                      boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 6px 20px 0 rgba(0, 0, 0, 0.15)'
+                      }
+                    }}
+                  >
+                    View
+                  </StyledButton>
+                </Box>
               </StyledCard>
             </Fade>
           </Grid>

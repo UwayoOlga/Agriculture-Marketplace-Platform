@@ -28,11 +28,12 @@ const formatRwf = (value) =>
 
 const statusColor = (status) => {
   switch (status) {
-    case 'PENDING':
     case 'PENDING_CONFIRMATION':
       return 'warning';
-    case 'CONFIRMED':
+    case 'PENDING_PAYMENT':
+      return 'info';
     case 'PAID':
+    case 'COMPLETED':
       return 'success';
     case 'REJECTED':
     case 'CANCELLED':
@@ -74,7 +75,7 @@ const FarmerOrders = () => {
   const submitAction = async () => {
     try {
       await api.patch(`/farmer/orders/${dialog.orderId}/status/`, {
-        status: dialog.action === 'accept' ? 'CONFIRMED' : 'REJECTED',
+        action: dialog.action, // 'accept' or 'reject'
         rejection_reason: dialog.action === 'reject' ? dialog.note : undefined,
       });
       enqueueSnackbar('Order updated', { variant: 'success' });
@@ -138,35 +139,43 @@ const FarmerOrders = () => {
                   <TableCell sx={{ maxWidth: 260 }}>
                     <Typography variant="body2">{renderItems(order.items)}</Typography>
                   </TableCell>
-                <TableCell>{formatRwf(order.total_amount)}</TableCell>
+                  <TableCell>{formatRwf(order.total_amount)}</TableCell>
                   <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button
-                        size="small"
-                        variant="contained"
-                        color="success"
-                        onClick={() => openDialog(order.id, 'accept')}
-                        disabled={order.status === 'CONFIRMED'}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="error"
-                        onClick={() => openDialog(order.id, 'reject')}
-                        disabled={order.status === 'REJECTED'}
-                      >
-                        Reject
-                      </Button>
-                    </Stack>
+                    {order.status === 'PENDING_CONFIRMATION' && (
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          onClick={() => openDialog(order.id, 'accept')}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => openDialog(order.id, 'reject')}
+                        >
+                          Reject
+                        </Button>
+                      </Stack>
+                    )}
+                    {(order.status === 'PENDING_PAYMENT' || order.status === 'PAID') && (
+                      <Chip label="Accepted" color="success" size="small" variant="outlined" />
+                    )}
+                    {order.status === 'REJECTED' && (
+                      <Chip label="Rejected" color="error" size="small" variant="outlined" />
+                    )}
+
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Paper>
-      )}
+      )
+      }
 
       <Dialog open={dialog.open} onClose={closeDialog} fullWidth maxWidth="sm">
         <DialogTitle>{dialog.action === 'accept' ? 'Accept Order' : 'Reject Order'}</DialogTitle>
@@ -195,7 +204,7 @@ const FarmerOrders = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Container >
   );
 };
 

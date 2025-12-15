@@ -105,12 +105,21 @@ const ProductDetails = () => {
         );
     }
 
+    // Helper to ensure absolute URL
+    const getImageUrl = (imagePath) => {
+        if (!imagePath) return '/src/assets/images/placeholder.svg';
+        if (imagePath.startsWith('http')) return imagePath; // Already absolute
+        // If relative, prepend API base URL
+        const baseUrl = apiClient.defaults.baseURL?.replace('/api', '').replace(/\/$/, '') || 'http://127.0.0.1:8000';
+        return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    };
+
     // Handle images: prefer backend images list, fallback to single image, or placeholder
     const images = product.images && product.images.length > 0
-        ? product.images.map(img => img.image)
-        : [product.image || '/src/assets/images/placeholder.svg'];
+        ? product.images.map(img => getImageUrl(img.image))
+        : [getImageUrl(product.image)];
 
-    const mainImage = images[selectedImage] || images[0];
+    const mainImage = images[selectedImage];
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>

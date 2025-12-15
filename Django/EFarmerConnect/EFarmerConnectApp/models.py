@@ -82,22 +82,18 @@ class CartItem(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('PENDING', 'Pending'),
-        ('PENDING_CONFIRMATION', 'Pending Farmer Confirmation'),
-        ('REJECTED', 'Rejected by Farmer'),
-        ('CONFIRMED', 'Confirmed by Farmer'),
-        ('AWAITING_PAYMENT', 'Awaiting Payment'),
-        ('PAYMENT_PROCESSING', 'Payment Processing'),
-        ('PAID', 'Payment Completed'),
-        ('PREPARING', 'Preparing for Shipping'),
-        ('SHIPPING', 'In Transit'),
-        ('DELIVERED', 'Delivered'),
+        ('PENDING_CONFIRMATION', 'Pending Confirmation'),
+        ('PENDING_PAYMENT', 'Pending Payment'),
+        ('PAID', 'Paid'),
+        ('REJECTED', 'Rejected'),
+        ('PROCESSING', 'Processing'),
+        ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
     )
     
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', limit_choices_to={'user_type': 'BUYER'}, null=True)
     order_date = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING_CONFIRMATION')
     shipping_address = models.TextField(null=True, blank=True)
     delivery_notes = models.TextField(blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -129,8 +125,9 @@ class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = (
         ('MTN_MOMO', 'MTN Mobile Money'),
         ('AIRTEL_MONEY', 'Airtel Money'),
-        ('TIGO_CASH', 'Tigo Cash'),
-        ('BANK_TRANSFER', 'Bank Transfer'),
+        ('BANK_BK', 'Bank of Kigali'),
+        ('BANK_EQUITY', 'Equity Bank'),
+        ('CREDIT_CARD', 'Credit Card'),
     )
     
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
@@ -268,6 +265,7 @@ class ForumPost(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='forum_posts')
+    image = models.ImageField(upload_to='forum_images/', blank=True, null=True)
     
     def __str__(self):
         return self.title

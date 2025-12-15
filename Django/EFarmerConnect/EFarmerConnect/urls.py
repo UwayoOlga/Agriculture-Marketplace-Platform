@@ -28,7 +28,8 @@ from EFarmerConnectApp.views import (
     CategoryViewSet, CartView, CartItemView,
     OrderView, PaymentView, ReviewView, ForumPostView,
     CommentView, WeatherAlertView, AgronomicAdviceView,
-    MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView
+    MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView,
+    LikePostView, ForumPostDetailView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
 from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView
@@ -106,7 +107,9 @@ urlpatterns = [
     
     # Community & Forum endpoints
     path('api/forum/posts/', ForumPostView.as_view(), name='forum_posts'),
+    path('api/forum/posts/<int:pk>/', ForumPostDetailView.as_view(), name='forum_post_detail'),
     path('api/forum/posts/<int:post_id>/comments/', CommentView.as_view(), name='post_comments'),
+    path('api/forum/posts/<int:post_id>/like/', LikePostView.as_view(), name='post_like'),
     
     # Agricultural Features endpoints
     path('api/weather-alerts/', WeatherAlertView.as_view(), name='weather_alerts'),

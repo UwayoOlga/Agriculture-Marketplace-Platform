@@ -18,6 +18,7 @@ import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
 import Forum from './pages/Forum';
 import SalesReport from './pages/SalesReport';
+import FarmerProducts from './pages/FarmerProducts';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
 
@@ -82,10 +83,18 @@ const AppContent = () => {
         />
         <Route path="login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
         <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
-        <Route path="products" element={<Products />} />
-        <Route path="products/:id" element={<ProductDetails />} />
-        <Route path="cart" element={<Cart />} />
-        <Route path="checkout" element={<Checkout />} />
+        <Route path="products" element={
+          isAuthenticated && user?.user_type === 'FARMER' ? <Navigate to="/farmer-dashboard" /> : <Products />
+        } />
+        <Route path="products/:id" element={
+          isAuthenticated && user?.user_type === 'FARMER' ? <Navigate to="/farmer-dashboard" /> : <ProductDetails />
+        } />
+        <Route path="cart" element={
+          isAuthenticated && user?.user_type === 'FARMER' ? <Navigate to="/farmer-dashboard" /> : <Cart />
+        } />
+        <Route path="checkout" element={
+          isAuthenticated && user?.user_type === 'FARMER' ? <Navigate to="/farmer-dashboard" /> : <Checkout />
+        } />
         <Route path="forum" element={<Forum />} />
 
         {/* Protected Routes */}
@@ -120,6 +129,14 @@ const AppContent = () => {
           element={
             <PrivateRoute>
               <SalesReport />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="farmer/products"
+          element={
+            <PrivateRoute>
+              <FarmerProducts />
             </PrivateRoute>
           }
         />

@@ -64,6 +64,9 @@ const Layout = () => {
   ];
 
   const navItems = allNavItems.filter(item => {
+    // Hide 'Products' from Farmers (they are sellers only)
+    if (user?.user_type === 'FARMER' && item.title === 'Products') return false;
+
     // If no roles defined, show to everyone (including guests and Buyers)
     if (!item.roles) return true;
 
@@ -189,17 +192,20 @@ const Layout = () => {
                   {/* Notifications - show for farmers */}
                   {user?.user_type === 'FARMER' && <NotificationsDropdown />}
 
-                  <IconButton
-                    color="inherit"
-                    aria-label="cart"
-                    component={RouterLink}
-                    to="/cart"
-                    sx={{ mr: 1 }}
-                  >
-                    <Badge badgeContent={itemCount} color="secondary">
-                      <ShoppingCartIcon />
-                    </Badge>
-                  </IconButton>
+                  {/* Cart - Hide for Farmers */}
+                  {user?.user_type !== 'FARMER' && (
+                    <IconButton
+                      color="inherit"
+                      aria-label="cart"
+                      component={RouterLink}
+                      to="/cart"
+                      sx={{ mr: 1 }}
+                    >
+                      <Badge badgeContent={itemCount} color="secondary">
+                        <ShoppingCartIcon />
+                      </Badge>
+                    </IconButton>
+                  )}
 
                   <Tooltip title="Open settings">
                     <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, ml: 1 }}>
