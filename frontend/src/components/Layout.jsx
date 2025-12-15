@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link as RouterLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Button, 
-  IconButton, 
-  Box, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  IconButton,
+  Box,
   Container,
   Menu,
   MenuItem,
@@ -34,7 +34,7 @@ const Layout = () => {
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
   };
-  
+
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
   };
@@ -57,11 +57,20 @@ const Layout = () => {
     navigate('/profile');
   };
 
-  const navItems = [
+  const allNavItems = [
     { title: 'Products', path: '/products' },
-    { title: 'Market Prices', path: '/market-prices' },
-    { title: 'Forum', path: '/forum' },
+    { title: 'Market Prices', path: '/market-prices', roles: ['FARMER', 'ADMIN'] },
+    { title: 'Forum', path: '/forum', roles: ['FARMER', 'ADMIN'] },
   ];
+
+  const navItems = allNavItems.filter(item => {
+    // If no roles defined, show to everyone (including guests and Buyers)
+    if (!item.roles) return true;
+
+    // If roles defined, user must be logged in and have matching role
+    if (!user) return false;
+    return item.roles.includes(user.user_type);
+  });
 
   const userMenuItems = [
     { title: 'Profile', action: handleProfile },
@@ -127,8 +136,8 @@ const Layout = () => {
                 }}
               >
                 {navItems.map((item) => (
-                  <MenuItem 
-                    key={item.path} 
+                  <MenuItem
+                    key={item.path}
                     onClick={() => {
                       handleCloseNavMenu();
                       navigate(item.path);
@@ -165,6 +174,7 @@ const Layout = () => {
                   key={item.path}
                   component={RouterLink}
                   to={item.path}
+                  onClick={() => navigate(item.path)}
                   sx={{ my: 2, color: 'white', display: 'block' }}
                 >
                   {item.title}
@@ -178,10 +188,10 @@ const Layout = () => {
                 <>
                   {/* Notifications - show for farmers */}
                   {user?.user_type === 'FARMER' && <NotificationsDropdown />}
-                  
-                  <IconButton 
-                    color="inherit" 
-                    aria-label="cart" 
+
+                  <IconButton
+                    color="inherit"
+                    aria-label="cart"
                     component={RouterLink}
                     to="/cart"
                     sx={{ mr: 1 }}
@@ -190,10 +200,10 @@ const Layout = () => {
                       <ShoppingCartIcon />
                     </Badge>
                   </IconButton>
-                  
+
                   <Tooltip title="Open settings">
                     <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, ml: 1 }}>
-                      <Avatar 
+                      <Avatar
                         alt={user?.username || 'User'}
                         src={user?.profile_picture}
                         sx={{ bgcolor: 'secondary.main' }}
@@ -202,7 +212,7 @@ const Layout = () => {
                       </Avatar>
                     </IconButton>
                   </Tooltip>
-                  
+
                   <Menu
                     sx={{ mt: '45px' }}
                     id="menu-appbar"
@@ -228,13 +238,13 @@ const Layout = () => {
                       </Typography>
                     </Box>
                     <Divider />
-                    
+
                     {userMenuItems.map((item) => (
                       <MenuItem key={item.title} onClick={item.action}>
                         <Typography textAlign="center">{item.title}</Typography>
                       </MenuItem>
                     ))}
-                    
+
                     <Divider />
                     <MenuItem onClick={handleLogout}>
                       <Typography textAlign="center" color="error">Logout</Typography>
@@ -243,17 +253,17 @@ const Layout = () => {
                 </>
               ) : (
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button 
-                    color="inherit" 
-                    component={RouterLink} 
+                  <Button
+                    color="inherit"
+                    component={RouterLink}
                     to="/login"
                   >
                     Login
                   </Button>
-                  <Button 
-                    variant="outlined" 
-                    color="inherit" 
-                    component={RouterLink} 
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    component={RouterLink}
                     to="/register"
                     sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'rgba(255, 255, 255, 0.8)' } }}
                   >

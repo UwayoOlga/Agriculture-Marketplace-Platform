@@ -3,22 +3,53 @@ import { Card, CardContent, CardMedia, Typography, Button, Box, IconButton, Badg
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { AddShoppingCart, Remove, Add } from '@mui/icons-material';
+import { useSnackbar } from 'notistack';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 import placeholder from '../assets/images/placeholder.svg';
 
 const ProductCard = ({ product }) => {
   const [quantity, setQuantity] = useState(0);
   const [imageError, setImageError] = useState(false);
+  const [cartItemId, setCartItemId] = useState(null);
+  const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuth();
 
-  const handleAddToCart = () => {
-    setQuantity(prev => prev + 1);
-    // TODO: Add to cart logic
+  const handleAddToCart = async () => {
+    if (!user || user.user_type !== 'BUYER') {
+      enqueueSnackbar('Only buyers can add items to cart. Please log in as a buyer.', { variant: 'warning' });
+      return;
+    }
+
+    try {
+      const resp = await api.post('/cart/items/', { product: product.id, quantity: 1 });
+      if (resp.data && resp.data.id) setCartItemId(resp.data.id);
+      setQuantity(prev => prev + 1);
+      enqueueSnackbar('Added to cart', { variant: 'success' });
+    } catch (err) {
+      console.error('Add to cart failed', err);
+      enqueueSnackbar('Failed to add to cart', { variant: 'error' });
+    }
   };
 
-  const handleRemoveFromCart = () => {
-    if (quantity > 0) {
-      setQuantity(prev => prev - 1);
-      // TODO: Remove from cart logic
+  const handleRemoveFromCart = async () => {
+    if (quantity <= 0) return;
+
+    if (cartItemId) {
+      try {
+        await api.delete(`/cart/items/${cartItemId}/`);
+        setCartItemId(null);
+        setQuantity(prev => Math.max(0, prev - 1));
+        enqueueSnackbar('Removed from cart', { variant: 'success' });
+        return;
+      } catch (err) {
+        console.error('Remove failed', err);
+        enqueueSnackbar('Failed to remove item from cart', { variant: 'error' });
+      }
     }
+
+    // Fallback: decrement locally
+    setQuantity(prev => Math.max(0, prev - 1));
   };
 
   const handleImageError = (e) => {

@@ -8,10 +8,22 @@ from .models import (
     Notification, SMSNotification, PasswordResetToken
 )
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ('id', 'image', 'is_primary', 'uploaded_at')
+
 class ProductSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)
+    farmer_name = serializers.CharField(source='farmer.username', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = ('id', 'farmer', 'farmer_name', 'category', 'category_name', 'name', 
+                 'description', 'price', 'stock', 'unit', 'harvest_date', 'expiry_date', 
+                 'farm_location', 'farm_gps_coordinates', 'is_organic', 'images', 
+                 'created_at', 'updated_at')
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -63,11 +75,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = '__all__'
-
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImage
         fields = '__all__'
 
 class CartSerializer(serializers.ModelSerializer):

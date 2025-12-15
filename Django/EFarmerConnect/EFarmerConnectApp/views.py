@@ -7,6 +7,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Q
 from django.utils import timezone
+from django.db import transaction
 from .models import (
     Product, User, Category, ProductImage, Cart, CartItem,
     Order, OrderItem, Payment, Review, ForumPost, Comment,
@@ -186,6 +187,13 @@ class ProductListView(APIView):
             elif is_organic.lower() in ['0', 'false', 'no']:
                 products = products.filter(is_organic=False)
 
+        # Ordering
+        ordering = request.query_params.get('ordering')
+        if ordering:
+            allowed_ordering = ['name', '-name', 'price', '-price', 'created_at', '-created_at', 'rating', '-rating']
+            if ordering in allowed_ordering:
+                products = products.order_by(ordering)
+
         # Pagination
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(products, request)
@@ -200,11 +208,26 @@ class ProductCreateView(APIView):
         # Only farmers can create products
         if getattr(request.user, 'user_type', None) != 'FARMER':
             return Response({'error': 'Only farmers can create products.'}, status=status.HTTP_403_FORBIDDEN)
+        
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(farmer=request.user)
-            return Response(serializer.data, status=201)
+            product = serializer.save(farmer=request.user)
+            
+            # Handle image uploads
+            images = request.FILES.getlist('images')
+            for idx, image in enumerate(images):
+                is_primary = idx == 0  # First image is primary
+                ProductImage.objects.create(
+                    product=product,
+                    image=image,
+                    is_primary=is_primary
+                )
+            
+            # Return updated product with images
+            updated_serializer = ProductSerializer(product)
+            return Response(updated_serializer.data, status=201)
         return Response(serializer.errors, status=400)
+
 
 # View product details
 class ProductDetailView(APIView):
@@ -286,6 +309,13 @@ class ProductSearchView(APIView):
             elif is_organic.lower() in ['0', 'false', 'no']:
                 products = products.filter(is_organic=False)
 
+        # Ordering
+        ordering = request.query_params.get('ordering')
+        if ordering:
+            allowed_ordering = ['name', '-name', 'price', '-price', 'created_at', '-created_at', 'rating', '-rating']
+            if ordering in allowed_ordering:
+                products = products.order_by(ordering)
+
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(products, request)
         serializer = ProductSerializer(page, many=True)
@@ -341,8 +371,35 @@ class OrderView(APIView):
         if getattr(request.user, 'user_type', None) != 'BUYER':
             return Response({'error': 'Only buyers can place orders.'}, status=status.HTTP_403_FORBIDDEN)
 
-        cart, _ = Cart.objects.get_or_create(buyer=request.user)
-        cart_items = list(cart.cartitem_set.select_related('product').all())
+        # Support creating order from payload items (for frontend localStorage cart)
+        items_payload = request.data.get('items')
+        cart_items = []
+        should_clear_db_cart = False
+
+        if items_payload:
+            for item in items_payload:
+                product_id = item.get('product_id') or item.get('id')
+                quantity = item.get('quantity')
+                
+                if not product_id or not quantity:
+                    continue
+                    
+                try:
+                    product = Product.objects.get(pk=product_id)
+                    # Create a simple object to mimic CartItem structure
+                    class TempCartItem:
+                        def __init__(self, product, quantity):
+                            self.product = product
+                            self.quantity = int(quantity)
+                    cart_items.append(TempCartItem(product, quantity))
+                except Product.DoesNotExist:
+                    return Response({'error': f'Product with ID {product_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Fallback to database cart
+            cart, _ = Cart.objects.get_or_create(buyer=request.user)
+            cart_items = list(cart.cartitem_set.select_related('product').all())
+            should_clear_db_cart = True
+
         if not cart_items:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -376,8 +433,9 @@ class OrderView(APIView):
                 cart_item.product.stock -= cart_item.quantity
                 cart_item.product.save()
 
-            # Clear the cart
-            cart.cartitem_set.all().delete()
+            # Clear the cart if using DB cart
+            if should_clear_db_cart:
+                cart.cartitem_set.all().delete()
             # Create notification for order creation
             Notification.objects.create(
                 user=request.user,
@@ -726,10 +784,11 @@ class SalesReportView(APIView):
         # Only farmers can generate reports
         if getattr(request.user, 'user_type', None) != 'FARMER':
             return Response({'error': 'Only farmers can generate sales reports.'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Accept optional start_date and end_date as YYYY-MM-DD
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
+
         try:
             if start_date_str:
                 start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -739,28 +798,33 @@ class SalesReportView(APIView):
                 end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             else:
                 end_date = datetime.utcnow().date()
-        except Exception:
+        except (ValueError, TypeError):
             return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Query order items for products that belong to this farmer within date range
+        from django.db.models import Sum, F
         items = OrderItem.objects.filter(
             product__farmer=request.user,
             order__order_date__date__gte=start_date,
             order__order_date__date__lte=end_date,
-        ).select_related('order', 'product')
+            order__status__in=['PAID', 'DELIVERED'] # Consider only completed sales
+        ).select_related('order', 'product').order_by('order__order_date')
+
+        # Calculate total using database aggregation for efficiency
+        total_sales = items.aggregate(
+            total=Sum(F('quantity') * F('price_at_time'))
+        )['total'] or Decimal('0.00')
 
         # Build table rows
         rows = []
-        total = Decimal('0.00')
         for it in items:
             order_date = it.order.order_date.date().isoformat()
             order_id = it.order.id
             product_name = it.product.name or 'Unnamed'
             qty = it.quantity
             unit_price = it.price_at_time
-            subtotal = (Decimal(qty) * Decimal(unit_price))
-            total += subtotal
-            rows.append([order_date, str(order_id), product_name, str(qty), f"{unit_price}", f"{subtotal}"])
+            subtotal = Decimal(qty) * unit_price
+            rows.append([order_date, str(order_id), product_name, str(qty), f"{unit_price:.2f}", f"{subtotal:.2f}"])
 
         # Prepare PDF
         buffer = BytesIO()
@@ -792,7 +856,7 @@ class SalesReportView(APIView):
         elements.append(table)
         elements.append(Spacer(1, 12))
 
-        total_paragraph = Paragraph(f"<b>Total sales: RWF {total}</b>", styles['Heading2'])
+        total_paragraph = Paragraph(f"<b>Total sales: RWF {total_sales:.2f}</b>", styles['Heading2'])
         elements.append(total_paragraph)
 
         # Build PDF

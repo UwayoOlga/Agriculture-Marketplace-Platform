@@ -52,7 +52,7 @@ const Products = () => {
     const fetchCategories = async () => {
       try {
         // Try to fetch from API first
-        const response = await apiClient.get('/api/categories/');
+        const response = await apiClient.get('/categories/');
         if (response.data && Array.isArray(response.data)) {
           setCategories(response.data);
           return;
@@ -82,7 +82,7 @@ const Products = () => {
           });
           queryParams.append('page', page);
 
-          const response = await apiClient.get(`/api/products/?${queryParams}`);
+          const response = await apiClient.get(`/products/?${queryParams}`);
           if (response.data && response.data.results) {
             setProducts(response.data.results);
             setTotalPages(response.data.total_pages || 1);

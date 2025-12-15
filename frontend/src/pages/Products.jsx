@@ -1,18 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  Container, 
-  Card, 
-  CardContent, 
-  CardMedia, 
-  Typography, 
-  Box, 
-  TextField, 
-  Button, 
-  Select, 
-  MenuItem, 
-  FormControl, 
-  InputLabel, 
-  CardActions, 
+import {
+  Container,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  CardActions,
   Pagination,
   Checkbox,
   FormControlLabel,
@@ -161,6 +161,19 @@ const getRandomProductImage = (id) => {
   return `/src/assets/images/${productImagePaths[index]}`;
 };
 
+// Normalize product image (prefer backend `images` field, then `image`, then fallback)
+const getProductImageUrl = (product, index) => {
+  const raw = product?.images?.[0]?.image || product?.image;
+  if (!raw) return getRandomProductImage(product?.id || index);
+  if (raw.startsWith('http')) return raw;
+  if (raw.startsWith('/')) {
+    // If the backend returns a path like /media/..., make it absolute using the API base
+    const base = (apiClient.defaults?.baseURL || '').replace(/\/?$/, '').replace(/\/api\/?$/, '') || '';
+    return base + raw;
+  }
+  return raw;
+};
+
 // Backend pagination size; align with DRF PAGE_SIZE (settings.py)
 const PAGE_SIZE = 12;
 
@@ -192,8 +205,8 @@ const Products = () => {
   const [wishlist, setWishlist] = useState([]);
 
   const toggleWishlist = (productId) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
+    setWishlist(prev =>
+      prev.includes(productId)
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
@@ -210,7 +223,7 @@ const Products = () => {
           <FilterAltIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
           Filters
         </Typography>
-        <Button 
+        <Button
           onClick={resetFilters}
           size="small"
           startIcon={<ClearIcon />}
@@ -220,27 +233,13 @@ const Products = () => {
         </Button>
       </Box>
 
-      <Box mb={3}>
-        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-          Search
-        </Typography>
-        <Search>
-          <SearchIconWrapper>
-            <SearchIcon />
-          </SearchIconWrapper>
-          <StyledInputBase
-            placeholder="Search products..."
-            value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-          />
-        </Search>
-      </Box>
+
 
       <Box mb={3}>
-        <Box 
-          display="flex" 
-          justifyContent="space-between" 
-          alignItems="center" 
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
           onClick={() => setExpandedCategory(!expandedCategory)}
           sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
         >
@@ -273,10 +272,10 @@ const Products = () => {
       </Box>
 
       <Box mb={3}>
-        <Box 
-          display="flex" 
-          justifyContent="space-between" 
-          alignItems="center" 
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
           onClick={() => setExpandedPrice(!expandedPrice)}
           sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
         >
@@ -297,7 +296,7 @@ const Products = () => {
                 value={filters.min_price}
                 onChange={(e) => handleFilterChange('min_price', e.target.value)}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">RWF</InputAdornment>,
                 }}
               />
               <Box alignSelf="center">-</Box>
@@ -309,7 +308,7 @@ const Products = () => {
                 value={filters.max_price}
                 onChange={(e) => handleFilterChange('max_price', e.target.value)}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">RWF</InputAdornment>,
                 }}
               />
             </Box>
@@ -354,7 +353,7 @@ const Products = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await apiClient.get('/api/categories/');
+        const response = await apiClient.get('/categories/');
         if (response.data && Array.isArray(response.data)) {
           setCategories(response.data);
           setBackendHealthy(true);
@@ -364,119 +363,127 @@ const Products = () => {
         // Category endpoint requires auth; fallback gracefully
         setBackendHealthy(false);
       }
-      
+
       setCategories(sampleCategories);
       setUsingSampleData(true);
     };
-    
+
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const queryParams = new URLSearchParams();
-        const endpoint = filters.search ? '/api/products/search/' : '/api/products/';
+  const [refreshToggle, setRefreshToggle] = useState(false);
 
-        if (filters.search) queryParams.append('query', filters.search);
-        if (filters.category) queryParams.append('category', filters.category);
-        if (filters.min_price) queryParams.append('min_price', filters.min_price);
-        if (filters.max_price) queryParams.append('max_price', filters.max_price);
-        if (filters.is_organic) queryParams.append('is_organic', 'true');
-        if (filters.location) queryParams.append('location', filters.location);
-        queryParams.append('page', page);
-        queryParams.append('page_size', PAGE_SIZE);
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const queryParams = new URLSearchParams();
+      const endpoint = filters.search ? '/products/search/' : '/products/';
 
-        const response = await apiClient.get(`${endpoint}?${queryParams.toString()}`);
-        const data = response.data;
+      if (filters.search) queryParams.append('query', filters.search);
+      if (filters.category) queryParams.append('category', filters.category);
+      if (filters.min_price) queryParams.append('min_price', filters.min_price);
+      if (filters.max_price) queryParams.append('max_price', filters.max_price);
+      if (filters.is_organic) queryParams.append('is_organic', 'true');
+      if (filters.location) queryParams.append('location', filters.location);
+      queryParams.append('page', page);
+      queryParams.append('page_size', PAGE_SIZE);
 
-        if (data && Array.isArray(data.results)) {
-          setProducts(data.results);
-          const totalCount = data.count ?? data.results.length;
-          const pages = data.count ? Math.max(1, Math.ceil(data.count / PAGE_SIZE)) : (data.total_pages || 1);
-          setTotalPages(pages || 1);
-          setBackendHealthy(true);
-          setUsingSampleData(false);
-          return;
-        }
+      const response = await apiClient.get(`${endpoint}?${queryParams.toString()}`);
+      const data = response.data;
 
-        // Fallback to sample data (offline/dev)
-        setBackendHealthy(false);
-        setUsingSampleData(true);
-
-        let filteredProducts = [...sampleProducts];
-
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredProducts = filteredProducts.filter(p => 
-            (p.name || '').toLowerCase().includes(searchLower) || 
-            (p.description || '').toLowerCase().includes(searchLower)
-          );
-        }
-
-        if (filters.category) {
-          filteredProducts = filteredProducts.filter(
-            (p.category?.id ?? p.category)?.toString() === filters.category.toString()
-          );
-        }
-
-        if (filters.min_price) {
-          filteredProducts = filteredProducts.filter(
-            Number(p.price) >= Number(filters.min_price)
-          );
-        }
-
-        if (filters.max_price) {
-          filteredProducts = filteredProducts.filter(
-            Number(p.price) <= Number(filters.max_price)
-          );
-        }
-
-        if (filters.is_organic) {
-          filteredProducts = filteredProducts.filter(p => p.is_organic);
-        }
-
-        if (filters.location) {
-          const locLower = filters.location.toLowerCase();
-          filteredProducts = filteredProducts.filter(
-            ((p.location || p.farm_location || '')).toLowerCase().includes(locLower)
-          );
-        }
-
-        if (filters.ordering) {
-          const key = filters.ordering.startsWith('-') ? filters.ordering.slice(1) : filters.ordering;
-          const dir = filters.ordering.startsWith('-') ? -1 : 1;
-          filteredProducts = filteredProducts.sort((a, b) => {
-            const av = a[key] ?? 0;
-            const bv = b[key] ?? 0;
-            if (typeof av === 'string') return av.localeCompare(bv) * dir;
-            return (av - bv) * dir;
-          });
-        }
-
-        setProducts(filteredProducts);
-        setTotalPages(1); 
-      } catch (error) {
-        console.error('Error:', error);
-        setProducts([]);
-      } finally {
-        setLoading(false);
+      if (data && Array.isArray(data.results)) {
+        setProducts(data.results);
+        const totalCount = data.count ?? data.results.length;
+        const pages = data.count ? Math.max(1, Math.ceil(data.count / PAGE_SIZE)) : (data.total_pages || 1);
+        setTotalPages(pages || 1);
+        setBackendHealthy(true);
+        setUsingSampleData(false);
+        return;
       }
-    };
 
+      // Fallback to sample data (offline/dev)
+      setBackendHealthy(false);
+      setUsingSampleData(true);
+
+      let filteredProducts = [...sampleProducts];
+
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredProducts = filteredProducts.filter(p =>
+          (p.name || '').toLowerCase().includes(searchLower) ||
+          (p.description || '').toLowerCase().includes(searchLower)
+        );
+      }
+
+      if (filters.category) {
+        filteredProducts = filteredProducts.filter(
+          (p.category?.id ?? p.category)?.toString() === filters.category.toString()
+        );
+      }
+
+      if (filters.min_price) {
+        filteredProducts = filteredProducts.filter(
+          Number(p.price) >= Number(filters.min_price)
+        );
+      }
+
+      if (filters.max_price) {
+        filteredProducts = filteredProducts.filter(
+          Number(p.price) <= Number(filters.max_price)
+        );
+      }
+
+      if (filters.is_organic) {
+        filteredProducts = filteredProducts.filter(p => p.is_organic);
+      }
+
+      if (filters.location) {
+        const locLower = filters.location.toLowerCase();
+        filteredProducts = filteredProducts.filter(
+          ((p.location || p.farm_location || '')).toLowerCase().includes(locLower)
+        );
+      }
+
+      if (filters.ordering) {
+        const key = filters.ordering.startsWith('-') ? filters.ordering.slice(1) : filters.ordering;
+        const dir = filters.ordering.startsWith('-') ? -1 : 1;
+        filteredProducts = filteredProducts.sort((a, b) => {
+          const av = a[key] ?? 0;
+          const bv = b[key] ?? 0;
+          if (typeof av === 'string') return av.localeCompare(bv) * dir;
+          return (av - bv) * dir;
+        });
+      }
+
+      setProducts(filteredProducts);
+      setTotalPages(1);
+    } catch (error) {
+      console.error('Error:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProducts();
-  }, [filters, page]);
+  }, [filters, page, refreshToggle]);
 
-  const handleFilterChange = (name, value) => {
+  useEffect(() => {
+    const handler = () => setRefreshToggle(prev => !prev);
+    window.addEventListener('product:created', handler);
+    return () => window.removeEventListener('product:created', handler);
+  }, []);
+
+  function handleFilterChange(name, value) {
     setFilters(prev => ({
       ...prev,
       [name]: value
     }));
     setPage(1);
-  };
+  }
 
-  const resetFilters = () => {
+  function resetFilters() {
     setFilters({
       search: '',
       category: '',
@@ -487,7 +494,7 @@ const Products = () => {
       ordering: 'name'
     });
     setPage(1);
-  };
+  }
 
   const toggleFilters = () => {
     setShowFilters(prev => !prev);
@@ -503,21 +510,21 @@ const Products = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-RW', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      currency: 'RWF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(price);
   };
 
   const renderProductCards = () => {
     if (loading && products.length === 0) {
       return (
-        <Box 
-          display="flex" 
-          justifyContent="center" 
-          alignItems="center" 
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
           minHeight="50vh"
           flexDirection="column"
         >
@@ -531,23 +538,23 @@ const Products = () => {
 
     if (products.length === 0) {
       return (
-        <Box 
-          textAlign="center" 
-          my={8} 
+        <Box
+          textAlign="center"
+          my={8}
           p={4}
           bgcolor="background.paper"
           borderRadius={2}
           boxShadow={1}
         >
-          <Box 
+          <Box
             component="img"
             src={placeholderImage}
             alt="No products"
-            sx={{ 
-              width: 200, 
-              height: 200, 
+            sx={{
+              width: 200,
+              height: 200,
               opacity: 0.7,
-              mb: 2 
+              mb: 2
             }}
           />
           <Typography variant="h5" color="text.secondary" gutterBottom>
@@ -556,9 +563,9 @@ const Products = () => {
           <Typography variant="body1" color="text.secondary" paragraph>
             We couldn't find any products matching your filters.
           </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
+          <Button
+            variant="contained"
+            color="primary"
             onClick={resetFilters}
             startIcon={<ClearIcon />}
           >
@@ -573,10 +580,10 @@ const Products = () => {
         {products.map((product, index) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
             <Fade in={true} timeout={500} style={{ transitionDelay: `${index * 50}ms` }}>
-              <StyledCard 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
+              <StyledCard
+                sx={{
+                  height: '100%',
+                  display: 'flex',
                   flexDirection: 'column',
                   transition: 'transform 0.3s, box-shadow 0.3s',
                   borderRadius: 2,
@@ -590,11 +597,11 @@ const Products = () => {
                   }
                 }}
               >
-                <CardActionArea 
+                <CardActionArea
                   onClick={() => handleViewDetails(product.id)}
                   sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
                 >
-                  <Box 
+                  <Box
                     sx={{
                       position: 'relative',
                       width: '100%',
@@ -605,7 +612,7 @@ const Products = () => {
                   >
                     <Box
                       component="img"
-                      src={product.image || getRandomProductImage(product.id || index)}
+                      src={getProductImageUrl(product, index)}
                       alt={product.name}
                       className="product-image"
                       onError={(e) => {
@@ -620,11 +627,11 @@ const Products = () => {
                       }}
                     />
                     {product.is_organic && (
-                      <Chip 
-                        label="ORGANIC" 
-                        size="small" 
-                        color="success" 
-                        sx={{ 
+                      <Chip
+                        label="ORGANIC"
+                        size="small"
+                        color="success"
+                        sx={{
                           position: 'absolute',
                           top: 12,
                           right: 12,
@@ -639,11 +646,11 @@ const Products = () => {
                       />
                     )}
                   </Box>
-                  
+
                   <CardContent sx={{ flexGrow: 1, p: 3, pb: 1 }}>
-                    <Typography 
-                      gutterBottom 
-                      variant="h6" 
+                    <Typography
+                      gutterBottom
+                      variant="h6"
                       component="h3"
                       sx={{
                         fontWeight: 700,
@@ -661,15 +668,15 @@ const Products = () => {
                     >
                       {product.name}
                     </Typography>
-                    
+
                     <Box display="flex" alignItems="center" mb={1.5}>
-                      <Rating 
-                        value={product.rating || 0} 
-                        precision={0.5} 
-                        readOnly 
+                      <Rating
+                        value={product.rating || 0}
+                        precision={0.5}
+                        readOnly
                         size="small"
-                        sx={{ 
-                          mr: 1, 
+                        sx={{
+                          mr: 1,
                           color: theme.palette.secondary.main,
                           '& .MuiRating-iconFilled': {
                             color: theme.palette.secondary.main
@@ -680,23 +687,23 @@ const Products = () => {
                         ({product.review_count || 0} reviews)
                       </Typography>
                     </Box>
-                    
+
                     <Box display="flex" alignItems="center" mb={2}>
                       <StoreIcon color="action" fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
                       <Typography variant="body2" color="text.secondary">
                         {product.farmer?.username || 'Local Farmer'}
                       </Typography>
                     </Box>
-                    
+
                     <Box display="flex" alignItems="center" mb={2.5}>
                       <LocationOnIcon color="action" fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
                       <Typography variant="body2" color="text.secondary">
                         {product.location || 'Rwanda'}
                       </Typography>
                     </Box>
-                    
+
                     <Divider sx={{ my: 2 }} />
-                    
+
                     <Box display="flex" justifyContent="space-between" alignItems="center" mt="auto">
                       <Box>
                         <Typography variant="h6" color="primary" fontWeight={700}>
@@ -715,7 +722,7 @@ const Products = () => {
                           handleViewDetails(product.id);
                         }}
                         endIcon={<VisibilityIcon />}
-                        sx={{ 
+                        sx={{
                           borderRadius: 2,
                           textTransform: 'none',
                           fontWeight: 600,
@@ -743,45 +750,11 @@ const Products = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* App Bar */}
-      <AppBar 
-        position="sticky" 
-        color="default" 
-        elevation={1}
-        sx={{ 
-          bgcolor: 'background.paper',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
+      {/* Page header removed — use main app navbar (eFarmerConnect) instead */}
+      <Box component="main" sx={{ flexGrow: 1, py: 4 }}>
         <Container maxWidth="xl">
-          <Toolbar disableGutters>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { md: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            
-            <Typography
-              variant="h6"
-              noWrap
-              component="div"
-              sx={{ 
-                flexGrow: 1, 
-                display: { xs: 'none', sm: 'block' },
-                fontWeight: 700,
-                color: 'primary.main',
-                fontSize: '1.5rem'
-              }}
-            >
-              AgroMarket
-            </Typography>
-            
-            <Search>
+          <Toolbar disableGutters sx={{ mb: 2 }}>
+            <Search sx={{ flex: 1 }}>
               <SearchIconWrapper>
                 <SearchIcon />
               </SearchIconWrapper>
@@ -791,31 +764,19 @@ const Products = () => {
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </Search>
-            
-            <Box sx={{ flexGrow: 1 }} />
-            
-            <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
-              <IconButton color="inherit">
-                <Badge badgeContent={wishlist.length} color="error">
-                  <FavoriteBorderIcon />
-                </Badge>
-              </IconButton>
-              <IconButton color="inherit">
-                <Badge badgeContent={4} color="error">
-                  <ShoppingCartIcon />
-                </Badge>
-              </IconButton>
+            <Box sx={{ ml: 2 }}>
+              <Button onClick={resetFilters} startIcon={<ClearIcon />}>Clear Filters</Button>
             </Box>
           </Toolbar>
         </Container>
-      </AppBar>
+      </Box>
 
       <Box sx={{ display: 'flex', flexGrow: 1 }}>
         {/* Desktop Sidebar */}
         <Box
           component="nav"
-          sx={{ 
-            width: { md: 280 }, 
+          sx={{
+            width: { md: 280 },
             flexShrink: { md: 0 },
             display: { xs: 'none', md: 'block' },
             borderRight: '1px solid',
@@ -840,8 +801,8 @@ const Products = () => {
           }}
           sx={{
             display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
               width: 280,
               p: 2,
             },
@@ -851,26 +812,26 @@ const Products = () => {
         </Drawer>
 
         {/* Main Content */}
-        <Box 
-          component="main" 
-          sx={{ 
-            flexGrow: 1, 
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
             p: 3,
             background: 'linear-gradient(180deg, #f9f9f9 0%, #ffffff 100%)',
             minHeight: 'calc(100vh - 64px)'
           }}
         >
           <Container maxWidth="xl" sx={{ py: 2 }}>
-            <Box 
-              display="flex" 
-              justifyContent="space-between" 
-              alignItems="center" 
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
               mb={4}
               flexWrap="wrap"
               gap={2}
             >
               <Box display="flex" alignItems="center" gap={2}>
-                <IconButton 
+                <IconButton
                   onClick={handleDrawerToggle}
                   sx={{ display: { md: 'none' } }}
                   color="primary"
@@ -880,10 +841,10 @@ const Products = () => {
                 <Typography variant="h5" fontWeight={700}>
                   {filters.search ? `Results for "${filters.search}"` : 'All Products'}
                 </Typography>
-                <Chip 
-                  label={`${products.length} items`} 
-                  size="small" 
-                  color="primary" 
+                <Chip
+                  label={`${products.length} items`}
+                  size="small"
+                  color="primary"
                   variant="outlined"
                 />
               </Box>
@@ -910,13 +871,13 @@ const Products = () => {
 
             {totalPages > 1 && (
               <Box display="flex" justifyContent="center" mt={6} mb={4}>
-                <Pagination 
-                  count={totalPages} 
-                  page={page} 
-                  onChange={handlePageChange} 
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={handlePageChange}
                   color="primary"
                   shape="rounded"
-                  showFirstButton 
+                  showFirstButton
                   showLastButton
                 />
               </Box>

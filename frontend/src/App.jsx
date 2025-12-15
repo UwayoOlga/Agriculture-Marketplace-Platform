@@ -8,10 +8,13 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Products from './pages/Products';
+import ProductDetails from './pages/ProductDetails';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerOrders from './pages/FarmerOrders';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 import Forum from './pages/Forum';
 import SalesReport from './pages/SalesReport';
 import { SnackbarProvider } from 'notistack';
@@ -68,17 +71,20 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route 
-          index 
+        <Route
+          index
           element={
-            isAuthenticated && user?.user_type === 'FARMER' ? 
-            <Navigate to="/farmer-dashboard" /> : 
-            <Home /> 
-          } 
+            isAuthenticated && user?.user_type === 'FARMER' ?
+              <Navigate to="/farmer-dashboard" /> :
+              <Home />
+          }
         />
         <Route path="login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
         <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
         <Route path="products" element={<Products />} />
+        <Route path="products/:id" element={<ProductDetails />} />
+        <Route path="cart" element={<Cart />} />
+        <Route path="checkout" element={<Checkout />} />
         <Route path="forum" element={<Forum />} />
 
         {/* Protected Routes */}

@@ -50,6 +50,8 @@ const FarmerDashboard = () => {
     category: '',
     is_organic: false
   });
+  const [productImages, setProductImages] = useState(null);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [products, setProducts] = useState([]);
@@ -93,12 +95,32 @@ const FarmerDashboard = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    
-      setProductData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      }));
+    if (type === 'file') {
+      const fileArray = files && files.length ? Array.from(files) : null;
+      setProductImages(fileArray);
+      return;
+    }
+
+    setProductData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
+
+  // Generate preview URLs when files change
+  React.useEffect(() => {
+    if (!productImages || productImages.length === 0) {
+      setPreviewUrls([]);
+      return;
+    }
+
+    const urls = productImages.map((file) => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [productImages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,17 +137,25 @@ const FarmerDashboard = () => {
           ? null
           : productData.category || null;
 
-      const payload = {
-        name: productData.name,
-        description: productData.description,
-        price: Number(productData.price),
-        stock: Number(productData.stock),
-        unit: productData.unit,
-        category,
-        is_organic: productData.is_organic,
-      };
+      // Build multipart form data so images can be uploaded
+      const formData = new FormData();
+      formData.append('name', productData.name);
+      formData.append('description', productData.description || '');
+      formData.append('price', Number(productData.price || 0));
+      formData.append('stock', Number(productData.stock || 0));
+      formData.append('unit', productData.unit);
+      if (category) formData.append('category', category);
+      formData.append('is_organic', productData.is_organic ? 'true' : 'false');
 
-      await api.post('/products/create/', payload);
+      if (productImages && productImages.length) {
+        for (let i = 0; i < productImages.length; i++) {
+          formData.append('images', productImages[i]);
+        }
+      }
+
+      await api.post('/products/create/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       
       // Reset form
       setProductData({
@@ -148,6 +178,11 @@ const FarmerDashboard = () => {
       } catch (loadErr) {
         console.error('Failed to refresh products', loadErr);
       }
+      setPreviewUrls([]);
+      // Dispatch a global event so other pages (e.g. Products) can refresh
+      try {
+        window.dispatchEvent(new CustomEvent('product:created'));
+      } catch (e) {}
     } catch (error) {
       console.error('Error adding product:', error);
       enqueueSnackbar('Failed to add product. Please try again.', { variant: 'error' });
@@ -405,7 +440,24 @@ const FarmerDashboard = () => {
                       label="Organic Product"
                     />
                   </Grid>
-                  
+
+                  <Grid xs={12}>
+                    <input
+                      accept="image/*"
+                      id="product-images"
+                      name="images"
+                      type="file"
+                      multiple
+                      onChange={(e) => setProductImages(Array.from(e.target.files))}
+                      style={{ display: 'block', marginTop: 8 }}
+                    />
+                    {productImages && productImages.length > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        {productImages.length} image(s) selected
+                      </Typography>
+                    )}
+                  </Grid>
+
                   <Grid xs={12}>
                     <Button 
                       type="submit" 
@@ -416,6 +468,23 @@ const FarmerDashboard = () => {
 {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Add Product'}
                     </Button>
                   </Grid>
+
+                  {previewUrls && previewUrls.length > 0 && (
+                    <Grid xs={12}>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                        {previewUrls.map((src, idx) => (
+                          <Box key={idx} sx={{ position: 'relative' }}>
+                            <img src={src} alt={`preview-${idx}`} style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6 }} />
+                            <Button size="small" color="error" onClick={() => {
+                              const newFiles = Array.from(productImages || []);
+                              newFiles.splice(idx, 1);
+                              setProductImages(newFiles.length ? newFiles : null);
+                            }} sx={{ position: 'absolute', top: 2, right: 2, minWidth: 0, p: '2px 6px' }}>x</Button>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Grid>
+                  )}
                 </Grid>
               </Box>
             )}
