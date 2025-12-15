@@ -385,6 +385,7 @@ const Products = () => {
       if (filters.max_price) queryParams.append('max_price', filters.max_price);
       if (filters.is_organic) queryParams.append('is_organic', 'true');
       if (filters.location) queryParams.append('location', filters.location);
+      if (filters.ordering) queryParams.append('ordering', filters.ordering);
       queryParams.append('page', page);
       queryParams.append('page_size', PAGE_SIZE);
 
@@ -691,7 +692,7 @@ const Products = () => {
                     <Box display="flex" alignItems="center" mb={2}>
                       <StoreIcon color="action" fontSize="small" sx={{ mr: 1, color: theme.palette.text.secondary }} />
                       <Typography variant="body2" color="text.secondary">
-                        {product.farmer?.username || 'Local Farmer'}
+                        {product.farmer_full_name || product.farmer?.username || 'Local Farmer'}
                       </Typography>
                     </Box>
 

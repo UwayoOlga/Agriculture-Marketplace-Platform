@@ -17,13 +17,20 @@ class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     farmer_name = serializers.CharField(source='farmer.username', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
+    farmer_full_name = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Product
-        fields = ('id', 'farmer', 'farmer_name', 'category', 'category_name', 'name', 
+        fields = ('id', 'farmer', 'farmer_name', 'farmer_full_name', 'category', 'category_name', 'name', 
                  'description', 'price', 'stock', 'unit', 'harvest_date', 'expiry_date', 
                  'farm_location', 'farm_gps_coordinates', 'is_organic', 'images', 
                  'created_at', 'updated_at')
+
+    def get_farmer_full_name(self, obj):
+        if obj.farmer:
+            full_name = f"{obj.farmer.first_name} {obj.farmer.last_name}".strip()
+            return full_name if full_name else obj.farmer.username
+        return "Unknown Farmer"
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

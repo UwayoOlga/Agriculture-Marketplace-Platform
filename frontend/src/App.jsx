@@ -15,6 +15,7 @@ import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerOrders from './pages/FarmerOrders';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import Orders from './pages/Orders';
 import Forum from './pages/Forum';
 import SalesReport from './pages/SalesReport';
 import { SnackbarProvider } from 'notistack';
@@ -124,6 +125,7 @@ const AppContent = () => {
         />
 
         {/* Additional routes can go here (cart, orders, etc.) */}
+        <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
       </Route>
 
       {/* Fallback for unknown routes */}

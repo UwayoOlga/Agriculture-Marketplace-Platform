@@ -226,7 +226,7 @@ const ProductDetails = () => {
                                                 Sold by
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
-                                                {product.farmer_name || product.farmer?.username || 'Unknown Farmer'}
+                                                {product.farmer_full_name || product.farmer_name || product.farmer?.username || 'Unknown Farmer'}
                                             </Typography>
                                         </Box>
                                     </Box>
