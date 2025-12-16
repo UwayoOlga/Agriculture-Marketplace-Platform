@@ -231,28 +231,59 @@ class AgronomicAdvice(models.Model):
         ('WATER', 'Water Management'),
         ('MARKET', 'Market Intelligence'),
     )
+
+    RISK_LEVELS = (
+        ('LOW', 'Low Risk (General)'),
+        ('MEDIUM', 'Medium Risk (Guarded)'),
+        ('HIGH', 'High Risk (Restricted)'),
+    )
+
+    SEASONS = (
+        ('RAINY_A', 'Rainy Season A (Sept-Jan)'),
+        ('RAINY_B', 'Rainy Season B (Feb-June)'),
+        ('DRY_C', 'Dry Season C (July-Aug)'),
+        ('ALL', 'All Seasons'),
+    )
     
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=20, choices=ADVICE_CATEGORIES)
+    risk_level = models.CharField(max_length=10, choices=RISK_LEVELS, default='LOW')
     content = models.TextField()
+    
+    # Context Fields
+    district = models.CharField(max_length=50, blank=True, null=True, help_text="Specific district or 'All'")
+    season = models.CharField(max_length=10, choices=SEASONS, default='ALL')
+    target_crop = models.CharField(max_length=100, blank=True, null=True, help_text="Specific crop (e.g., 'Maize (Hybrid 614)')")
+    soil_type = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., 'Volcanic', 'Sandy Loam'")
+
     author = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'ADMIN'})
-    crops = models.ManyToManyField(Category, related_name='advice')
+    crops = models.ManyToManyField(Category, related_name='advice', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='advice_images/', blank=True, null=True)
     
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.risk_level})"
 
 class MarketPrice(models.Model):
+    TREND_CHOICES = (
+        ('UP', 'Up'),
+        ('DOWN', 'Down'),
+        ('STABLE', 'Stable'),
+    )
+
     product_category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    product_name = models.CharField(max_length=100, blank=True, null=True, help_text="Specific product name (e.g. Irish Potato)")
     market_location = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='RWF')
+    trend = models.CharField(max_length=10, choices=TREND_CHOICES, default='STABLE')
     date = models.DateField()
     source = models.CharField(max_length=100)
+    image = models.ImageField(upload_to='market_images/', blank=True, null=True)
     
     class Meta:
-        unique_together = ('product_category', 'market_location', 'date')
+        ordering = ['-date']
     
     def __str__(self):
         return f"{self.product_category.name} - {self.market_location}"

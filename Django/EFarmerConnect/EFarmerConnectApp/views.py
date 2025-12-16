@@ -174,8 +174,11 @@ class ProductListView(APIView):
         if location:
             products = products.filter(farm_location__icontains=location)
         if farmer_id:
-            if farmer_id == 'me' and request.user.is_authenticated:
-                products = products.filter(farmer=request.user)
+            if farmer_id == 'me':
+                if request.user.is_authenticated:
+                    products = products.filter(farmer=request.user)
+                else:
+                    return Response({"error": "Authentication required for 'me' filter."}, status=status.HTTP_401_UNAUTHORIZED)
             else:
                 try:
                     farmer_id_int = int(farmer_id)
@@ -723,6 +726,28 @@ class AgronomicAdviceView(APIView):
 
     def get(self, request):
         advice = AgronomicAdvice.objects.all().order_by('-created_at')
+        
+        # Filtering
+        district = request.query_params.get('district')
+        season = request.query_params.get('season')
+        risk_level = request.query_params.get('risk_level')
+        target_crop = request.query_params.get('target_crop')
+        
+        if district:
+            # Advice tailored for a specific district OR general advice (district is null or blank)
+            # Or strict filtering based on requirements. Let's do partial match or strict.
+            # Assuming simple partial match for now or strict equality.
+            advice = advice.filter(Q(district__icontains=district) | Q(district__isnull=True) | Q(district=''))
+        
+        if season and season != 'ALL':
+            advice = advice.filter(Q(season=season) | Q(season='ALL'))
+            
+        if risk_level:
+            advice = advice.filter(risk_level=risk_level)
+            
+        if target_crop:
+            advice = advice.filter(target_crop__icontains=target_crop)
+            
         serializer = AgronomicAdviceSerializer(advice, many=True)
         return Response(serializer.data)
 

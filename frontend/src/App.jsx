@@ -19,6 +19,8 @@ import Orders from './pages/Orders';
 import Forum from './pages/Forum';
 import SalesReport from './pages/SalesReport';
 import FarmerProducts from './pages/FarmerProducts';
+import Advice from './pages/Advice';
+import MarketPrices from './pages/MarketPrices';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
 
@@ -117,7 +119,7 @@ const AppContent = () => {
           }
         />
         <Route
-          path="farmer-orders"
+          path="farmer/orders"
           element={
             <PrivateRoute>
               <FarmerOrders />
@@ -137,6 +139,22 @@ const AppContent = () => {
           element={
             <PrivateRoute>
               <FarmerProducts />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="farmer/advice"
+          element={
+            <PrivateRoute>
+              <Advice />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="market-prices"
+          element={
+            <PrivateRoute>
+              <MarketPrices />
             </PrivateRoute>
           }
         />

@@ -59,8 +59,10 @@ const Layout = () => {
 
   const allNavItems = [
     { title: 'Products', path: '/products' },
-    { title: 'Market Prices', path: '/market-prices', roles: ['FARMER', 'ADMIN'] },
-    { title: 'Forum', path: '/forum', roles: ['FARMER', 'ADMIN'] },
+    { title: 'My Products', path: '/farmer/products', roles: ['FARMER'] },
+    { title: 'Orders', path: '/farmer/orders', roles: ['FARMER'] },
+    { title: 'Advice (RAB)', path: '/farmer/advice', roles: ['FARMER'] },
+    { title: 'Market Prices', path: '/market-prices', roles: ['ADMIN', 'FARMER', 'BUYER'] },
   ];
 
   const navItems = allNavItems.filter(item => {
@@ -219,43 +221,47 @@ const Layout = () => {
                     </IconButton>
                   </Tooltip>
 
-                  <Menu
-                    sx={{ mt: '45px' }}
-                    id="menu-appbar"
-                    anchorEl={anchorElUser}
-                    anchorOrigin={{
-                      vertical: 'top',
-                      horizontal: 'right',
-                    }}
-                    keepMounted
-                    transformOrigin={{
-                      vertical: 'top',
-                      horizontal: 'right',
-                    }}
-                    open={Boolean(anchorElUser)}
-                    onClose={handleCloseUserMenu}
-                  >
-                    <Box sx={{ px: 2, py: 1 }}>
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        {user?.username || 'User'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {user?.email || ''}
-                      </Typography>
-                    </Box>
-                    <Divider />
-
-                    {userMenuItems.map((item) => (
-                      <MenuItem key={item.title} onClick={item.action}>
-                        <Typography textAlign="center">{item.title}</Typography>
+                  {isAuthenticated ? (
+                    <Menu
+                      sx={{ mt: '45px' }}
+                      id="menu-appbar"
+                      anchorEl={anchorElUser}
+                      anchorOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                      keepMounted
+                      transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }}
+                      open={Boolean(anchorElUser)}
+                      onClose={handleCloseUserMenu}
+                    >
+                      <MenuItem disabled sx={{ opacity: 1, pointerEvents: 'none' }}>
+                        <Box sx={{ px: 2, py: 1 }}>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {user?.username || 'User'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {user?.email || ''}
+                          </Typography>
+                        </Box>
                       </MenuItem>
-                    ))}
+                      <Divider />
 
-                    <Divider />
-                    <MenuItem onClick={handleLogout}>
-                      <Typography textAlign="center" color="error">Logout</Typography>
-                    </MenuItem>
-                  </Menu>
+                      {userMenuItems.map((item) => (
+                        <MenuItem key={item.title} onClick={item.action}>
+                          <Typography textAlign="center">{item.title}</Typography>
+                        </MenuItem>
+                      ))}
+
+                      <Divider />
+                      <MenuItem onClick={handleLogout}>
+                        <Typography textAlign="center" color="error">Logout</Typography>
+                      </MenuItem>
+                    </Menu>
+                  ) : null}
                 </>
               ) : (
                 <Box sx={{ display: 'flex', gap: 1 }}>
