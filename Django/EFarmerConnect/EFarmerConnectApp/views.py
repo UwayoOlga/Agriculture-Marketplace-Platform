@@ -1232,7 +1232,8 @@ class ReceiptView(APIView):
         buffer.seek(0)
         
         filename = f"receipt_order_{order.id}.pdf"
-        response = Response(buffer.getvalue(), content_type='application/pdf')
+        from django.http import HttpResponse
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
 
