@@ -255,3 +255,15 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'uwayoolga@gmail.com'
+EMAIL_HOST_PASSWORD = 'Horizon2!'  # Note: For Gmail, you typically need an App Password, not your login password.
+DEFAULT_FROM_EMAIL = 'E-Farmer Connect <uwayoolga@gmail.com>'
+
+# Frontend URL for email links
+FRONTEND_URL = 'http://localhost:5173'

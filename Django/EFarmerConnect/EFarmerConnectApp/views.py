@@ -103,22 +103,43 @@ class PasswordResetRequestView(APIView):
         email = serializer.validated_data.get('email')
         username = serializer.validated_data.get('username')
 
-        try:
-            if email:
-                user = User.objects.get(email=email)
-            else:
-                user = User.objects.get(username=username)
-        except User.DoesNotExist:
+        users = []
+        if email:
+            users = User.objects.filter(email=email)
+        elif username:
+            users = User.objects.filter(username=username)
+
+        if not users.exists():
             # Do not reveal whether the user exists
             return Response({'detail': 'If an account exists, a reset token has been generated.'}, status=status.HTTP_200_OK)
 
         from .models import PasswordResetToken
+        from django.core.mail import send_mail
+        from django.conf import settings
 
-        token = uuid.uuid4().hex
-        PasswordResetToken.objects.create(user=user, token=token)
+        # Process all matching users (in case of duplicate emails)
+        tokens = []
+        for user in users:
+            token = uuid.uuid4().hex
+            PasswordResetToken.objects.create(user=user, token=token)
+            tokens.append(token)
 
-        # In a real system, send via email/SMS. For now, return token in response for testing.
-        return Response({'detail': 'Password reset token generated.', 'token': token}, status=status.HTTP_201_CREATED)
+            try:
+                reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+                send_mail(
+                    subject='Password Reset Request',
+                    message=f'Hello {user.username},\n\nClick the link below to reset your password:\n\n{reset_link}\n\nIf you did not request this, please ignore this email.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                print(f"DEBUG: Password Reset Token for {user.username}: {token}") 
+            except Exception as e:
+                # Log error but continue for other users if any
+                print(f"Error sending email to {user.email}: {e}")
+                pass
+
+        return Response({'detail': 'Password reset link sent to your email.', 'token': tokens[0] if tokens else None}, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):

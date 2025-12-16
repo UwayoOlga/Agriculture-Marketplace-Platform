@@ -151,6 +151,13 @@ const Login = () => {
                 </Typography>
               </Link>
             </Box>
+            <Box textAlign="center" sx={{ mt: 1 }}>
+              <Link to="/forgot-password" style={{ textDecoration: 'none' }}>
+                <Typography variant="body2" color="primary">
+                  Forgot Password?
+                </Typography>
+              </Link>
+            </Box>
           </Box>
         </Paper>
       </Box>

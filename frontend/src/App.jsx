@@ -24,6 +24,8 @@ import MarketPrices from './pages/MarketPrices';
 import FarmerCartRequests from './pages/FarmerCartRequests';
 import { SnackbarProvider } from 'notistack';
 import { CartProvider } from './contexts/CartContext';
+import RequestPasswordReset from './pages/auth/RequestPasswordReset';
+import ResetPassword from './pages/auth/ResetPassword';
 
 // Admin Components
 import AdminRoute from './components/AdminRoute';
@@ -95,6 +97,8 @@ function App() {
                   <Route element={<Layout><Box className="main-content-wrapper" /></Layout>}>
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<RequestPasswordReset />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/" element={<Home />} />
                     <Route path="/pending-approval" element={
                       <Box sx={{ p: 4, textAlign: 'center' }}>
