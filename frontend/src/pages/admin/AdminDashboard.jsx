@@ -25,6 +25,7 @@ import {
     MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import apiClient from '../../api/apiClient';
+import { useNavigate } from 'react-router-dom';
 
 // Metric Card Component
 const MetricCard = ({ title, value, icon, color, trend }) => (
@@ -69,6 +70,7 @@ const MetricCard = ({ title, value, icon, color, trend }) => (
 );
 
 const AdminDashboard = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         users: 0,
         orders: 0,
@@ -120,40 +122,49 @@ const AdminDashboard = () => {
             {/* Metrics Grid */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MetricCard
-                        title="Total Users"
-                        value={stats.users}
-                        icon={<PeopleIcon />}
-                        color="#2196f3"
-                        trend="+12%"
-                    />
+                    <Box sx={{ cursor: 'pointer' }} onClick={() => navigate('/admin/users')}>
+                        <MetricCard
+                            title="Total Users"
+                            value={stats.users}
+                            icon={<PeopleIcon />}
+                            color="#2196f3"
+                            trend={stats.users_trend}
+                        />
+                    </Box>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MetricCard
-                        title="Total Orders"
-                        value={stats.orders}
-                        icon={<OrderIcon />}
-                        color="#ff9800"
-                        trend="+5%"
-                    />
+                    <Box sx={{ cursor: 'pointer' }} onClick={() => navigate('/admin/orders')}>
+                        <MetricCard
+                            title="Total Orders"
+                            value={stats.orders}
+                            icon={<OrderIcon />}
+                            color="#ff9800"
+                            trend={stats.orders_trend}
+                        />
+                    </Box>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MetricCard
-                        title="Total Revenue"
-                        value={formatCurrency(stats.revenue)}
-                        icon={<MoneyIcon />}
-                        color="#4caf50"
-                        trend="+18%"
-                    />
+                    {/* Linking revenue to orders for now as analytics page doesn't exist separately */}
+                    <Box sx={{ cursor: 'pointer' }} onClick={() => navigate('/admin/orders')}>
+                        <MetricCard
+                            title="Total Revenue"
+                            value={stats.revenue !== undefined ? formatCurrency(stats.revenue) : 'RWF 0'}
+                            icon={<MoneyIcon />}
+                            color="#4caf50"
+                            trend={stats.revenue_trend}
+                        />
+                    </Box>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MetricCard
-                        title="Pending Requests"
-                        value={stats.pending}
-                        icon={<TrendingUpIcon />}
-                        color="#f44336"
-                        trend="Needs Attention"
-                    />
+                    <Box sx={{ cursor: 'pointer' }} onClick={() => navigate('/admin/orders')}>
+                        <MetricCard
+                            title="Pending Requests"
+                            value={stats.pending}
+                            icon={<TrendingUpIcon />}
+                            color="#f44336"
+                            trend={stats.pending_trend}
+                        />
+                    </Box>
                 </Grid>
             </Grid>
 

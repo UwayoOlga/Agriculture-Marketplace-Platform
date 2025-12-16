@@ -1259,14 +1259,55 @@ class AdminDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.user_type != 'ADMIN':
+        if getattr(request.user, 'user_type', None) != 'ADMIN':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
-        total_users = User.objects.count()
-        total_orders = Order.objects.count()
-        revenue = Order.objects.filter(status__in=['PAID', 'COMPLETED']).aggregate(total=Sum('total_amount'))['total'] or 0
-        pending_requests = Order.objects.filter(status='PENDING_APPROVAL').count()
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        sixty_days_ago = now - timedelta(days=60)
 
+        # Helper to calculate trend
+        def calculate_trend(current_count, previous_count):
+            if previous_count == 0:
+                return "+100%" if current_count > 0 else "0%"
+            change = ((current_count - previous_count) / previous_count) * 100
+            return f"{'+' if change > 0 else ''}{int(change)}%"
+
+        # Users
+        total_users = User.objects.count()
+        users_current_period = User.objects.filter(date_joined__gte=thirty_days_ago).count()
+        users_prev_period = User.objects.filter(date_joined__gte=sixty_days_ago, date_joined__lt=thirty_days_ago).count()
+        users_trend = calculate_trend(users_current_period, users_prev_period)
+
+        # Orders
+        total_orders = Order.objects.count()
+        orders_current_period = Order.objects.filter(order_date__gte=thirty_days_ago).count()
+        orders_prev_period = Order.objects.filter(order_date__gte=sixty_days_ago, order_date__lt=thirty_days_ago).count()
+        orders_trend = calculate_trend(orders_current_period, orders_prev_period)
+
+        # Revenue (Only PAID or COMPLETED)
+        revenue_current = Order.objects.filter(status__in=['PAID', 'COMPLETED']).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        rev_current_period_sum = Order.objects.filter(
+            status__in=['PAID', 'COMPLETED'], 
+            order_date__gte=thirty_days_ago
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        rev_prev_period_sum = Order.objects.filter(
+            status__in=['PAID', 'COMPLETED'], 
+            order_date__gte=sixty_days_ago, 
+            order_date__lt=thirty_days_ago
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        revenue_trend = calculate_trend(rev_current_period_sum, rev_prev_period_sum)
+
+        # Pending Requests
+        pending_requests = Order.objects.filter(status='PENDING_APPROVAL').count()
+        # For pending, trend isn't time-based usually, but let's compare to last month's pending creation if possible?
+        # Actually proper "pending" is a snapshot state. 
+        # Let's just return a static helpful message or compare new pending requests vs last month.
+        # Simplest: "Needs Attention" is hardcoded in frontend for now, but we can pass it if dynamic.
+        
         recent_orders_qs = Order.objects.all().order_by('-order_date')[:5]
         recent_orders_data = []
         for order in recent_orders_qs:
@@ -1280,9 +1321,13 @@ class AdminDashboardStatsView(APIView):
 
         return Response({
             'users': total_users,
+            'users_trend': users_trend,
             'orders': total_orders,
-            'revenue': revenue,
+            'orders_trend': orders_trend,
+            'revenue': revenue_current,
+            'revenue_trend': revenue_trend,
             'pending': pending_requests,
+            'pending_trend': "Active",
             'recent_orders': recent_orders_data
         })
 
@@ -1335,18 +1380,4 @@ class AdminOrderListView(generics.ListAPIView):
             return Order.objects.all().order_by('-order_date')
         return Order.objects.none()
 
-# Admin Dashboard Stats
-class AdminDashboardStatsView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        if getattr(request.user, 'user_type', None) != 'ADMIN':
-             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
-        return Response({
-            'total_users': User.objects.count(),
-            'total_farmers': User.objects.filter(user_type='FARMER').count(),
-            'total_products': Product.objects.count(),
-            'total_orders': Order.objects.count(),
-            'total_sales': Order.objects.filter(status='PAID').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        })
