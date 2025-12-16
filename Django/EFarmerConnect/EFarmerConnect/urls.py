@@ -124,6 +124,9 @@ urlpatterns = [
     path('api/crop-calendar/', CropCalendarView.as_view(), name='crop_calendar'),
     path('api/market-prices/', MarketPriceView.as_view(), name='market_prices'),
     
+    # Receipt endpoint
+    path('api/orders/<int:order_id>/receipt/', ReceiptView.as_view(), name='order_receipt'),
+    
     # Notification endpoints
     path('api/notifications/', NotificationView.as_view(), name='notifications'),
     path('api/notifications/<int:notification_id>/', NotificationView.as_view(), name='notification_detail'),
