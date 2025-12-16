@@ -170,6 +170,26 @@ const OrderRow = ({ order, onPay }) => {
     const canPay = order.status === 'PENDING_PAYMENT';
     // User request (pending confirmation)
     const isPending = order.status === 'PENDING_CONFIRMATION';
+    // Order is paid - can download receipt
+    const isPaid = order.status === 'PAID';
+
+    const handleDownloadReceipt = async (e) => {
+        e.stopPropagation();
+        try {
+            const response = await apiClient.get(`/orders/${order.id}/receipt/`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `receipt_order_${order.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Failed to download receipt:', error);
+        }
+    };
 
     return (
         <Card variant="outlined" sx={{ mb: 2, borderColor: canPay ? 'primary.main' : undefined, borderWidth: canPay ? 2 : 1 }}>
@@ -190,6 +210,17 @@ const OrderRow = ({ order, onPay }) => {
                                 sx={{ mr: 1 }}
                             >
                                 Pay Now
+                            </Button>
+                        )}
+                        {isPaid && (
+                            <Button
+                                variant="outlined"
+                                color="success"
+                                size="small"
+                                onClick={handleDownloadReceipt}
+                                sx={{ mr: 1 }}
+                            >
+                                Download Receipt
                             </Button>
                         )}
                         <IconButton onClick={() => setOpen(!open)} size="small">

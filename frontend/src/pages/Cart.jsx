@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -10,6 +10,8 @@ import {
     IconButton,
     TextField,
     Divider,
+    Checkbox,
+    CircularProgress,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
@@ -17,14 +19,81 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
+import { useSnackbar } from 'notistack';
 
 const Cart = () => {
     const { cart, updateQuantity, removeFromCart, total, itemCount } = useCart();
+    const { user } = useAuth();
     const navigate = useNavigate();
+    const { enqueueSnackbar } = useSnackbar();
+    const [selectedItems, setSelectedItems] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const handleCheckout = () => {
-        navigate('/checkout');
+    // Initialize all items as selected
+    useEffect(() => {
+        setSelectedItems(cart.map(item => item.id));
+    }, [cart]);
+
+    const handleSelectItem = (itemId) => {
+        setSelectedItems(prev =>
+            prev.includes(itemId)
+                ? prev.filter(id => id !== itemId)
+                : [...prev, itemId]
+        );
     };
+
+    const handleSelectAll = () => {
+        if (selectedItems.length === cart.length) {
+            setSelectedItems([]);
+        } else {
+            setSelectedItems(cart.map(item => item.id));
+        }
+    };
+
+    const handleCheckout = async () => {
+        if (selectedItems.length === 0) {
+            enqueueSnackbar('Please select at least one item to checkout', { variant: 'warning' });
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            // Get selected cart items
+            const selectedCartItems = cart.filter(item => selectedItems.includes(item.id));
+
+            // Create order with selected items
+            const response = await api.post('/orders/', {
+                items: selectedCartItems.map(item => ({
+                    product_id: item.product_id || item.id,
+                    quantity: item.quantity
+                })),
+                shipping_address: user?.address || '',
+                delivery_notes: ''
+            });
+
+            enqueueSnackbar('Order request sent to farmer! Awaiting approval.', { variant: 'success' });
+
+            // Clear selected items from cart
+            selectedCartItems.forEach(item => removeFromCart(item.id));
+
+            // Navigate to orders page
+            navigate('/orders');
+
+        } catch (error) {
+            console.error('Checkout error:', error);
+            enqueueSnackbar(error.response?.data?.error || 'Failed to create order', { variant: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Calculate totals for selected items only
+    const selectedTotal = cart
+        .filter(item => selectedItems.includes(item.id))
+        .reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
 
     const formatPrice = (price) => {
         return new Intl.NumberFormat('en-RW', {
@@ -65,9 +134,27 @@ const Cart = () => {
             <Grid container spacing={4}>
                 <Grid item xs={12} md={8}>
                     <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid #e0e0e0' }}>
+                        {/* Select All Header */}
+                        <Box p={2} bgcolor="#f5f5f5" display="flex" alignItems="center" gap={1}>
+                            <Checkbox
+                                checked={selectedItems.length === cart.length && cart.length > 0}
+                                indeterminate={selectedItems.length > 0 && selectedItems.length < cart.length}
+                                onChange={handleSelectAll}
+                            />
+                            <Typography variant="body2" fontWeight={600}>
+                                Select All ({selectedItems.length} of {cart.length} selected)
+                            </Typography>
+                        </Box>
+                        <Divider />
                         {cart.map((item) => (
                             <Box key={item.id}>
                                 <Box p={2} display="flex" alignItems="center" gap={2}>
+                                    {/* Checkbox */}
+                                    <Checkbox
+                                        checked={selectedItems.includes(item.id)}
+                                        onChange={() => handleSelectItem(item.id)}
+                                    />
+
                                     {/* Image */}
                                     <Box
                                         component="img"
@@ -127,9 +214,14 @@ const Cart = () => {
                             Order Summary
                         </Typography>
 
+                        <Box display="flex" justifyContent="space-between" mb={1}>
+                            <Typography color="text.secondary">Selected Items</Typography>
+                            <Typography fontWeight={600}>{selectedItems.length} of {cart.length}</Typography>
+                        </Box>
+
                         <Box display="flex" justifyContent="space-between" mb={2}>
                             <Typography color="text.secondary">Subtotal</Typography>
-                            <Typography fontWeight={600}>{formatPrice(total)}</Typography>
+                            <Typography fontWeight={600}>{formatPrice(selectedTotal)}</Typography>
                         </Box>
 
                         <Box display="flex" justifyContent="space-between" mb={3}>
@@ -141,7 +233,7 @@ const Cart = () => {
 
                         <Box display="flex" justifyContent="space-between" mb={3}>
                             <Typography variant="h6">Total</Typography>
-                            <Typography variant="h6" color="primary">{formatPrice(total)}</Typography>
+                            <Typography variant="h6" color="primary">{formatPrice(selectedTotal)}</Typography>
                         </Box>
 
                         <Button
@@ -149,9 +241,11 @@ const Cart = () => {
                             variant="contained"
                             size="large"
                             onClick={handleCheckout}
+                            disabled={selectedItems.length === 0 || loading}
+                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
                             sx={{ py: 1.5, fontWeight: 700 }}
                         >
-                            Proceed to Checkout
+                            {loading ? 'Creating Order...' : `Checkout Selected Items (${selectedItems.length})`}
                         </Button>
 
                         <Button

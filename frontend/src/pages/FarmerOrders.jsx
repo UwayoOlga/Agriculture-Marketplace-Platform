@@ -28,7 +28,7 @@ const formatRwf = (value) =>
 
 const statusColor = (status) => {
   switch (status) {
-    case 'PENDING_CONFIRMATION':
+    case 'PENDING_APPROVAL':
       return 'warning';
     case 'PENDING_PAYMENT':
       return 'info';
@@ -75,7 +75,7 @@ const FarmerOrders = () => {
   const submitAction = async () => {
     try {
       await api.patch(`/farmer/orders/${dialog.orderId}/status/`, {
-        action: dialog.action, // 'accept' or 'reject'
+        action: dialog.action, // 'approve' or 'reject'
         rejection_reason: dialog.action === 'reject' ? dialog.note : undefined,
       });
       enqueueSnackbar('Order updated', { variant: 'success' });
@@ -141,15 +141,15 @@ const FarmerOrders = () => {
                   </TableCell>
                   <TableCell>{formatRwf(order.total_amount)}</TableCell>
                   <TableCell align="right">
-                    {order.status === 'PENDING_CONFIRMATION' && (
+                    {order.status === 'PENDING_APPROVAL' && (
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         <Button
                           size="small"
                           variant="contained"
                           color="success"
-                          onClick={() => openDialog(order.id, 'accept')}
+                          onClick={() => openDialog(order.id, 'approve')}
                         >
-                          Accept
+                          Approve
                         </Button>
                         <Button
                           size="small"
@@ -178,7 +178,7 @@ const FarmerOrders = () => {
       }
 
       <Dialog open={dialog.open} onClose={closeDialog} fullWidth maxWidth="sm">
-        <DialogTitle>{dialog.action === 'accept' ? 'Accept Order' : 'Reject Order'}</DialogTitle>
+        <DialogTitle>{dialog.action === 'approve' ? 'Approve Order' : 'Reject Order'}</DialogTitle>
         <DialogContent>
           {dialog.action === 'reject' && (
             <TextField
@@ -191,7 +191,7 @@ const FarmerOrders = () => {
               sx={{ mt: 2 }}
             />
           )}
-          {dialog.action === 'accept' && (
+          {dialog.action === 'approve' && (
             <Typography variant="body2" sx={{ mt: 1 }}>
               Confirm this order. The buyer will be notified.
             </Typography>
@@ -199,8 +199,8 @@ const FarmerOrders = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDialog}>Cancel</Button>
-          <Button variant="contained" color={dialog.action === 'accept' ? 'success' : 'error'} onClick={submitAction}>
-            {dialog.action === 'accept' ? 'Accept' : 'Reject'}
+          <Button variant="contained" color={dialog.action === 'approve' ? 'success' : 'error'} onClick={submitAction}>
+            {dialog.action === 'approve' ? 'Approve' : 'Reject'}
           </Button>
         </DialogActions>
       </Dialog>

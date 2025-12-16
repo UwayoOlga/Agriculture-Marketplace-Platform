@@ -207,22 +207,20 @@ const NotificationsDropdown = () => {
           ))
         )}
 
-        {notifications.length > 0 && (
-          <>
-            <Divider />
-            <Box sx={{ p: 1, textAlign: 'center' }}>
-              <Button
-                fullWidth
-                size="small"
-                startIcon={<ClearAllIcon />}
-                onClick={clearAll}
-                sx={{ color: 'error.main' }}
-              >
-                Clear All
-              </Button>
-            </Box>
-          </>
-        )}
+        {notifications.length > 0 && [
+          <Divider key="divider" />,
+          <Box key="clear-all" sx={{ p: 1, textAlign: 'center' }}>
+            <Button
+              fullWidth
+              size="small"
+              startIcon={<ClearAllIcon />}
+              onClick={clearAll}
+              sx={{ color: 'error.main' }}
+            >
+              Clear All
+            </Button>
+          </Box>
+        ]}
       </Menu>
     </>
   );

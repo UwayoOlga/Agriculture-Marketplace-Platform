@@ -32,7 +32,7 @@ from EFarmerConnectApp.views import (
     LikePostView, ForumPostDetailView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
-from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView, FarmerCartRequestsView, FarmerCartRequestActionView
+from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView, FarmerCartRequestsView, FarmerCartRequestActionView, ReceiptView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -98,17 +98,19 @@ urlpatterns = [
     # Order Management endpoints
     path('api/orders/', OrderView.as_view(), name='orders'),
     path('api/orders/<int:order_id>/payment/', PaymentView.as_view(), name='order_payment'),
+    path('api/orders/<int:order_id>/receipt/', ReceiptView.as_view(), name='order_receipt'),
     path('api/orders/<int:order_id>/delivery/', DeliveryLogisticsView.as_view(), name='order_delivery'),
 
     # Farmer order management
     path('api/farmer/orders/', FarmerOrderListView.as_view(), name='farmer_orders'),
     path('api/farmer/orders/<int:order_id>/status/', FarmerOrderStatusView.as_view(), name='farmer_order_status'),
-    path('api/farmer/sales-report/', SalesReportView.as_view(), name='sales_report'),
-    
-    # Farmer cart request management (pre-approval system)
-    path('api/farmer/cart-requests/', FarmerCartRequestsView.as_view(), name='farmer_cart_requests'),
-    path('api/farmer/cart-requests/<int:request_id>/action/', FarmerCartRequestActionView.as_view(), name='farmer_cart_request_action'),
 
+    # Sales report for farmers
+    path('api/farmer/sales-report/', SalesReportView.as_view(), name='farmer_sales_report'),
+
+    # DEPRECATED: Cart requests now handled via Order model with PENDING_APPROVAL status
+    # path('api/farmer/cart-requests/', FarmerCartRequestsView.as_view(), name='farmer_cart_requests'),
+    # path('api/farmer/cart-requests/<int:request_id>/action/', FarmerCartRequestActionView.as_view(), name='farmer_cart_request_action'),
     
     # Community & Forum endpoints
     path('api/forum/posts/', ForumPostView.as_view(), name='forum_posts'),
@@ -124,6 +126,8 @@ urlpatterns = [
     
     # Notification endpoints
     path('api/notifications/', NotificationView.as_view(), name='notifications'),
+    path('api/notifications/<int:notification_id>/', NotificationView.as_view(), name='notification_detail'),
+    path('api/notifications/mark-all-read/', NotificationView.as_view(), name='notifications_mark_all_read'),
     path('api/notifications/sms/', SMSNotificationView.as_view(), name='sms_notifications'),
     path('api/', include(router.urls)),
 ]

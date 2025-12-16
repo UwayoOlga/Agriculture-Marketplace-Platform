@@ -82,8 +82,8 @@ class CartItem(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('PENDING_CONFIRMATION', 'Pending Confirmation'),
-        ('PENDING_PAYMENT', 'Pending Payment'),
+        ('PENDING_APPROVAL', 'Pending Farmer Approval'),  # Buyer created order, waiting for farmer
+        ('PENDING_PAYMENT', 'Pending Payment'),  # Farmer approved, waiting for buyer payment
         ('PAID', 'Paid'),
         ('REJECTED', 'Rejected'),
         ('PROCESSING', 'Processing'),

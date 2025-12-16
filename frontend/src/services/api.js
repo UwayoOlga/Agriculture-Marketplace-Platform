@@ -113,11 +113,11 @@ const isTokenExpired = (token) => {
 // Clear auth data and redirect to login
 const clearAuthAndRedirect = (errorMessage = 'Your session has expired. Please log in again.') => {
   Object.values(STORAGE_KEYS).forEach(key => storage.removeItem(key));
-  
+
   if (errorMessage && !window.location.pathname.includes('/login')) {
     message.error(errorMessage);
   }
-  
+
   // Only redirect if not already on login page to prevent infinite redirects
   if (!window.location.pathname.includes('/login')) {
     window.location.href = '/login';
@@ -155,11 +155,11 @@ api.interceptors.request.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-        .then(token => {
-          config.headers.Authorization = `Bearer ${token}`;
-          return config;
-        })
-        .catch(err => Promise.reject(err));
+          .then(token => {
+            config.headers.Authorization = `Bearer ${token}`;
+            return config;
+          })
+          .catch(err => Promise.reject(err));
       }
 
       isRefreshing = true;
@@ -178,10 +178,10 @@ api.interceptors.request.use(
         storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
         api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         config.headers.Authorization = `Bearer ${access}`;
-        
+
         // Process queued requests
         processQueue(null, access);
-        
+
         return config;
       } catch (error) {
         processQueue(error, null);
@@ -199,7 +199,7 @@ api.interceptors.request.use(
 
     // Update last activity on each request
     updateLastActivity();
-    
+
     return config;
   },
   (error) => {
@@ -216,7 +216,7 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
+
     // Handle network errors
     if (!error.response) {
       message.error('Network error. Please check your connection.');
@@ -224,7 +224,7 @@ api.interceptors.response.use(
     }
 
     const { status, data } = error.response;
-    
+
     // Handle 401 Unauthorized
     if (status === 401) {
       // If already retried or refresh token is missing
@@ -288,7 +288,7 @@ const startInactivityTimer = () => {
   setInterval(() => {
     const lastActivity = storage.getItem(STORAGE_KEYS.LAST_ACTIVITY);
     const currentTime = Date.now();
-    
+
     if (lastActivity && currentTime - lastActivity > INACTIVITY_TIMEOUT) {
       clearAuthAndRedirect('You have been logged out due to inactivity.');
     }
@@ -306,32 +306,32 @@ export const authAPI = {
     try {
       const response = await api.post('/token/', credentials);
       const { access, refresh } = response.data;
-      
+
       if (!access || !refresh) {
         throw new Error('Invalid response from server');
       }
-      
+
       // Store tokens securely
       storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
       storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh);
       updateLastActivity();
       // Ensure axios instance uses the new access token immediately
       setAuthHeader(access);
-      
+
       return response.data;
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
       throw new Error(errorMessage);
     }
   },
-  
+
   logout: () => {
     // Clear all auth data
     Object.values(STORAGE_KEYS).forEach(key => storage.removeItem(key));
     delete api.defaults.headers.common['Authorization'];
     window.location.href = '/login';
   },
-  
+
   register: async (userData) => {
     try {
       const response = await api.post('/register/', userData);
@@ -347,7 +347,7 @@ export const authAPI = {
       throw new Error(error.response?.data?.detail || 'Registration failed. Please try again.');
     }
   },
-  
+
   requestPasswordReset: async (email) => {
     try {
       const response = await api.post('/password-reset/request/', { email });
@@ -358,7 +358,7 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
-  
+
   confirmPasswordReset: async (token, newPassword) => {
     try {
       const response = await api.post('/password-reset/confirm/', {
@@ -372,7 +372,7 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
-  
+
   getProfile: async () => {
     try {
       const response = await api.get('/profile/');
@@ -382,7 +382,7 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
-  
+
   updateProfile: async (profileData) => {
     try {
       const response = await api.put('/profile/', profileData);
@@ -393,7 +393,7 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
-  
+
   changePassword: async (currentPassword, newPassword) => {
     try {
       const response = await api.post('/change-password/', {
@@ -407,13 +407,13 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
-  
+
   // Check if user is authenticated
   isAuthenticated: () => {
     const accessToken = storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     return !!accessToken && !isTokenExpired(accessToken);
   },
-  
+
   // Get auth headers
   getAuthHeader: () => {
     const accessToken = storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -423,5 +423,43 @@ export const authAPI = {
 
 // Expose helper for external modules to set/clear auth header
 authAPI.setAuthHeader = setAuthHeader;
+
+// Notification API
+export const notificationAPI = {
+  getNotifications: async () => {
+    try {
+      const response = await api.get('/notifications/');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      throw error;
+    }
+  },
+
+  markAsRead: async (notificationId) => {
+    try {
+      const response = await api.patch(`/notifications/${notificationId}/`, {
+        is_read: true
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      throw error;
+    }
+  },
+
+  markAllAsRead: async () => {
+    try {
+      // If backend supports bulk update, use that endpoint
+      // Otherwise, we'll handle this in the context by calling markAsRead for each
+      const response = await api.post('/notifications/mark-all-read/');
+      return response.data;
+    } catch (error) {
+      // If endpoint doesn't exist, this will fail gracefully
+      console.warn('Bulk mark as read not supported:', error);
+      throw error;
+    }
+  }
+};
 
 export default api;

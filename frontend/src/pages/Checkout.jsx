@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -28,10 +28,22 @@ import apiClient from '../api/apiClient';
 import { useSnackbar } from 'notistack';
 
 const Checkout = () => {
-    const { cart, total, clearCart } = useCart();
+    const { cart, total, clearCart, removeFromCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { enqueueSnackbar } = useSnackbar();
+
+    // Get selected items from navigation state, or use all cart items as fallback
+    const [checkoutItems, setCheckoutItems] = useState([]);
+    const [checkoutTotal, setCheckoutTotal] = useState(0);
+
+    useEffect(() => {
+        const selectedItems = location.state?.selectedItems || cart;
+        setCheckoutItems(selectedItems);
+        const total = selectedItems.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+        setCheckoutTotal(total);
+    }, [location.state, cart]);
 
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Success
@@ -53,9 +65,12 @@ const Checkout = () => {
 
 
 
-    // Modified to finish after order creation
+    // Modified to finish after order creation - only remove checked out items
     const finishCheckout = () => {
-        clearCart();
+        // Remove only the items that were checked out
+        checkoutItems.forEach(item => {
+            removeFromCart(item.id);
+        });
         setStep(2); // Success step
     };
 
@@ -72,7 +87,7 @@ const Checkout = () => {
             const payload = {
                 shipping_address: shippingInfo.address,
                 delivery_notes: shippingInfo.notes,
-                items: cart.map(item => ({
+                items: checkoutItems.map(item => ({
                     product_id: item.id,
                     quantity: item.quantity
                 }))
@@ -102,7 +117,7 @@ const Checkout = () => {
         }).format(price);
     };
 
-    if (cart.length === 0 && step === 1) {
+    if (checkoutItems.length === 0) {
         navigate('/products');
         return null;
     }
@@ -164,7 +179,7 @@ const Checkout = () => {
 
                         <Box mt={4} display="flex" justifyContent="space-between" alignItems="center">
                             <Typography variant="h6">
-                                Total: {formatPrice(total)}
+                                Total: {formatPrice(checkoutTotal)}
                             </Typography>
                             <Button
                                 type="submit"

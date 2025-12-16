@@ -74,22 +74,22 @@ const FarmerCartRequests = () => {
                 action: dialog.action, // 'approve' or 'reject'
                 reason: dialog.action === 'reject' ? dialog.note : undefined,
             });
-            enqueueSnackbar('Cart request updated', { variant: 'success' });
+            enqueueSnackbar('Order request updated', { variant: 'success' });
             closeDialog();
             loadRequests();
         } catch (e) {
-            console.error('Failed to update cart request', e);
-            enqueueSnackbar('Failed to update cart request', { variant: 'error' });
+            console.error('Failed to update order request', e);
+            enqueueSnackbar('Failed to update order request', { variant: 'error' });
         }
     };
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Typography variant="h4" gutterBottom>
-                Cart Requests
+                Order Requests
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                Buyers who want to add your products to their cart. Approve or reject their requests.
+                Buyers who want to purchase your products. Approve or reject their requests.
             </Typography>
 
             {loading ? (
@@ -97,7 +97,7 @@ const FarmerCartRequests = () => {
                     <CircularProgress />
                 </Box>
             ) : requests.length === 0 ? (
-                <Alert severity="info">No cart requests yet.</Alert>
+                <Alert severity="info">No order requests yet.</Alert>
             ) : (
                 <Paper>
                     <Table>
@@ -170,7 +170,7 @@ const FarmerCartRequests = () => {
             )}
 
             <Dialog open={dialog.open} onClose={closeDialog} fullWidth maxWidth="sm">
-                <DialogTitle>{dialog.action === 'approve' ? 'Approve Cart Request' : 'Reject Cart Request'}</DialogTitle>
+                <DialogTitle>{dialog.action === 'approve' ? 'Approve Order Request' : 'Reject Order Request'}</DialogTitle>
                 <DialogContent>
                     {dialog.action === 'reject' && (
                         <TextField
@@ -185,7 +185,7 @@ const FarmerCartRequests = () => {
                     )}
                     {dialog.action === 'approve' && (
                         <Typography variant="body2" sx={{ mt: 1 }}>
-                            Approve this cart request. The buyer will be notified and can proceed to checkout.
+                            Approve this order request. The buyer will be notified and can proceed to checkout.
                         </Typography>
                     )}
                 </DialogContent>

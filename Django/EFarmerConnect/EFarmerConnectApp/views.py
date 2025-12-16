@@ -427,7 +427,7 @@ class OrderView(APIView):
         if not cart_items:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate stock and compute total
+        # Validate stock availability (but don't deduct yet - wait for farmer approval)
         total_amount = 0
         for item in cart_items:
             if item.product.stock is None or item.product.stock < item.quantity:
@@ -442,11 +442,20 @@ class OrderView(APIView):
                 )
             total_amount += float(item.product.price) * item.quantity
 
-        serializer = OrderSerializer(data={**request.data, 'buyer': request.user.id, 'total_amount': total_amount})
+        # Create order with PENDING_APPROVAL status
+        order_data = {
+            **request.data,
+            'buyer': request.user.id,
+            'total_amount': total_amount,
+            'status': 'PENDING_APPROVAL'  # Waiting for farmer approval
+        }
+        
+        serializer = OrderSerializer(data=order_data)
         if serializer.is_valid():
             order = serializer.save()
 
-            # Create order items and update stock
+            # Create order items (but don't deduct stock yet - wait for approval)
+            farmers = set()  # Track farmers to notify
             for cart_item in cart_items:
                 OrderItem.objects.create(
                     order=order,
@@ -454,18 +463,30 @@ class OrderView(APIView):
                     quantity=cart_item.quantity,
                     price_at_time=cart_item.product.price,
                 )
-                cart_item.product.stock -= cart_item.quantity
-                cart_item.product.save()
+                # Track the farmer for this product
+                farmers.add(cart_item.product.farmer)
+                # DON'T deduct stock yet - wait for farmer approval
 
             # Clear the cart if using DB cart
             if should_clear_db_cart:
                 cart.cartitem_set.all().delete()
-            # Create notification for order creation
+            
+            # Notify farmer(s) about new order request
+            for farmer in farmers:
+                if farmer:  # Check farmer exists
+                    Notification.objects.create(
+                        user=farmer,
+                        type='ORDER',
+                        title=f'New Order Request #{order.id}',
+                        message=f'{request.user.username} has placed an order request. Please review and approve or reject.'
+                    )
+            
+            # Notify buyer that order was created and is pending approval
             Notification.objects.create(
                 user=request.user,
                 type='ORDER',
-                title=f'Order #{order.id} created',
-                message='Your order has been placed and is pending processing.',
+                title=f'Order Request #{order.id} Submitted',
+                message='Your order request has been sent to the farmer. You will be notified once it is reviewed.',
             )
 
             return Response(OrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
@@ -533,44 +554,56 @@ class FarmerOrderStatusView(APIView):
         except Order.DoesNotExist:
             return Response({'error': 'Order not found for this farmer.'}, status=status.HTTP_404_NOT_FOUND)
 
-        action = request.data.get('action') # 'accept' or 'reject'
+        action = request.data.get('action') # 'approve' or 'reject'
         rejection_reason = request.data.get('rejection_reason')
 
-        if action == 'accept':
-            if order.status != 'PENDING_CONFIRMATION':
-                return Response({'error': 'Order is not pending confirmation.'}, status=status.HTTP_400_BAD_REQUEST)
+        if action == 'approve':
+            if order.status != 'PENDING_APPROVAL':
+                return Response({'error': 'Order is not pending approval.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate and deduct stock on approval
+            for item in order.items.all():
+                product = item.product
+                if product.stock is None or product.stock < item.quantity:
+                    return Response({
+                        'error': f'Insufficient stock for {product.name}. Available: {product.stock}, Requested: {item.quantity}',
+                        'product_id': product.id,
+                        'available_stock': product.stock,
+                        'requested_quantity': item.quantity
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Deduct stock on approval
+                product.stock -= item.quantity
+                product.save()
+            
             order.status = 'PENDING_PAYMENT'
             order.save()
             
             Notification.objects.create(
                 user=order.buyer,
                 type='ORDER',
-                title=f'Order #{order.id} Accepted',
-                message='Your order has been accepted by the farmer. Please proceed to payment.',
+                title=f'Order #{order.id} Approved!',
+                message='Your order has been approved by the farmer. Please proceed to payment.',
             )
-            return Response({'detail': 'Order accepted.', 'status': order.status})
+            return Response({'detail': 'Order approved.', 'status': order.status})
 
         elif action == 'reject':
-            if order.status in ['PAID', 'COMPLETED', 'CANCELLED', 'REJECTED']:
-                 return Response({'error': 'Cannot reject order in current status.'}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status not in ['PENDING_APPROVAL']:
+                 return Response({'error': 'Can only reject orders pending approval.'}, status=status.HTTP_400_BAD_REQUEST)
             
             order.status = 'REJECTED'
             order.rejection_reason = rejection_reason or 'Rejected by farmer'
             order.save()
 
-            # Restore stock
-            for item in order.items.all():
-                product = item.product
-                product.stock = (product.stock or 0) + item.quantity
-                product.save()
-
+            # No need to restore stock since we never deducted it in the first place
+            
             Notification.objects.create(
                 user=order.buyer,
                 type='ORDER',
                 title=f'Order #{order.id} Rejected',
                 message=rejection_reason or 'The farmer has rejected your order request.',
             )
-            return Response({'detail': 'Order rejected and stock restored.', 'status': order.status})
+            return Response({'detail': 'Order rejected.', 'status': order.status})
 
         else:
             return Response({'error': 'Invalid action. Use "accept" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
@@ -630,11 +663,15 @@ class PaymentView(APIView):
             if status_str == 'COMPLETED':
                 order.status = 'PAID'
                 order.save()
+                
+                # Generate receipt URL
+                receipt_url = f'/api/orders/{order.id}/receipt/'
+                
                 Notification.objects.create(
                     user=request.user,
                     type='PAYMENT',
                     title=f'Payment received for Order #{order.id}',
-                    message=f'Your payment of {amount} has been received.',
+                    message=f'Your payment of RWF {amount:,.0f} has been received. Download your receipt here: {receipt_url}',
                 )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -859,6 +896,21 @@ class NotificationView(APIView):
         notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data)
+    
+    def patch(self, request, notification_id=None):
+        """Mark notification(s) as read"""
+        if notification_id:
+            # Mark single notification as read
+            notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+            notification.is_read = request.data.get('is_read', True)
+            notification.save()
+            serializer = NotificationSerializer(notification)
+            return Response(serializer.data)
+        else:
+            # Mark all notifications as read
+            Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+            return Response({'detail': 'All notifications marked as read'})
+
 
 class SMSNotificationView(APIView):
     permission_classes = [IsAuthenticated]
@@ -996,7 +1048,7 @@ class FarmerCartRequestActionView(APIView):
     
     def patch(self, request, request_id):
         if getattr(request.user, 'user_type', None) != 'FARMER':
-            return Response({'error': 'Only farmers can manage cart requests.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Only farmers can manage order requests.'}, status=status.HTTP_403_FORBIDDEN)
         
         from .models import CartRequest
         
@@ -1017,11 +1069,11 @@ class FarmerCartRequestActionView(APIView):
             Notification.objects.create(
                 user=cart_request.buyer,
                 type='ORDER',
-                title='Cart Item Approved',
-                message=f'Your request for {cart_request.product.name} has been approved! You can now proceed to checkout.'
+                title='Order Request Approved',
+                message=f'Your order request for {cart_request.product.name} has been approved! You can now proceed to checkout.'
             )
             
-            return Response({'detail': 'Cart request approved.', 'status': cart_request.status})
+            return Response({'detail': 'Order request approved.', 'status': cart_request.status})
             
         elif action == 'reject':
             cart_request.status = 'REJECTED'
@@ -1033,12 +1085,155 @@ class FarmerCartRequestActionView(APIView):
             Notification.objects.create(
                 user=cart_request.buyer,
                 type='ORDER',
-                title='Cart Item Rejected',
-                message=f'Your request for {cart_request.product.name} was rejected. Reason: {cart_request.rejection_reason or "Not specified"}'
+                title='Order Request Rejected',
+                message=f'Your order request for {cart_request.product.name} was rejected. Reason: {cart_request.rejection_reason or "Not specified"}'
             )
             
-            return Response({'detail': 'Cart request rejected.', 'status': cart_request.status})
+            return Response({'detail': 'Order request rejected.', 'status': cart_request.status})
         
         else:
             return Response({'error': 'Invalid action. Use "approve" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
+
+# Receipt Generation
+class ReceiptView(APIView):
+    """
+    Generate PDF receipt for a paid order.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, order_id):
+        # Get order and verify it belongs to the user and is paid
+        order = get_object_or_404(Order, id=order_id, buyer=request.user, status='PAID')
+        
+        # Get payment details
+        payment = Payment.objects.filter(order=order, status='COMPLETED').first()
+        
+        # Create PDF
+        from io import BytesIO
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2e7d32'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph("E-FARMER CONNECT", title_style))
+        elements.append(Paragraph("PAYMENT RECEIPT", styles['Heading2']))
+        elements.append(Spacer(1, 12))
+        
+        # Receipt Info
+        receipt_info = [
+            ['Receipt #:', f'RCT-{order.id}-{payment.id if payment else "N/A"}'],
+            ['Order #:', str(order.id)],
+            ['Date:', order.order_date.strftime('%Y-%m-%d %H:%M')],
+            ['Payment Date:', payment.payment_date.strftime('%Y-%m-%d %H:%M') if payment else 'N/A'],
+            ['Payment Method:', payment.payment_method if payment else 'N/A'],
+            ['Transaction ID:', payment.transaction_id if payment else 'N/A'],
+        ]
+        
+        info_table = Table(receipt_info, colWidths=[2*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 20))
+        
+        # Buyer Info
+        elements.append(Paragraph("BUYER INFORMATION", styles['Heading3']))
+        buyer_info = [
+            ['Name:', order.buyer.username],
+            ['Email:', order.buyer.email],
+            ['Phone:', order.buyer.phone_number or 'N/A'],
+            ['Address:', order.shipping_address or 'N/A'],
+        ]
+        buyer_table = Table(buyer_info, colWidths=[2*inch, 4*inch])
+        buyer_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(buyer_table)
+        elements.append(Spacer(1, 20))
+        
+        # Items Table
+        elements.append(Paragraph("ORDER ITEMS", styles['Heading3']))
+        items_data = [['Item', 'Quantity', 'Unit Price', 'Total']]
+        
+        for item in order.items.all():
+            items_data.append([
+                item.product.name,
+                str(item.quantity),
+                f'RWF {item.price_at_time:,.0f}',
+                f'RWF {item.price_at_time * item.quantity:,.0f}'
+            ])
+        
+        items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
+        items_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        elements.append(items_table)
+        elements.append(Spacer(1, 20))
+        
+        # Total
+        total_data = [
+            ['Subtotal:', f'RWF {order.total_amount:,.0f}'],
+            ['Delivery Fee:', 'FREE'],
+            ['TOTAL PAID:', f'RWF {order.total_amount:,.0f}'],
+        ]
+        total_table = Table(total_data, colWidths=[5*inch, 2*inch])
+        total_table.setStyle(TableStyle([
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 12),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
+            ('TOPPADDING', (0, -1), (-1, -1), 12),
+        ]))
+        elements.append(total_table)
+        elements.append(Spacer(1, 30))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph("Thank you for your purchase!", footer_style))
+        elements.append(Paragraph("E-Farmer Connect - Connecting Farmers and Buyers", footer_style))
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        filename = f"receipt_order_{order.id}.pdf"
+        response = Response(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
 

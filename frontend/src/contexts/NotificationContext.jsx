@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import api from '../services/api';
+import { notificationAPI } from '../services/api';
 
 const NotificationContext = createContext();
 
@@ -12,93 +12,147 @@ export const useNotifications = () => {
   return context;
 };
 
+// Helper to get icon based on notification type
+const getNotificationIcon = (type) => {
+  const iconMap = {
+    'ORDER': '📦',
+    'PAYMENT': '💰',
+    'WEATHER': '🌦️',
+    'PRICE': '💵',
+    'ADVICE': '🌾'
+  };
+  return iconMap[type] || '🔔';
+};
+
 export const NotificationProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  // Simulate fetching notifications (in production, this would be from API)
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await notificationAPI.getNotifications();
+
+      // Transform backend notifications to match frontend format
+      const transformedNotifications = data.map(notif => ({
+        id: notif.id,
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        timestamp: new Date(notif.created_at),
+        read: notif.is_read,
+        icon: getNotificationIcon(notif.type)
+      }));
+
+      setNotifications(transformedNotifications);
+      setUnreadCount(transformedNotifications.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      // Don't clear notifications on error, keep existing ones
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
+
+  // Initial fetch and polling
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    // Initialize with some default notifications based on user type
-    const defaultNotifications = [];
+    // Fetch immediately on mount
+    fetchNotifications();
 
-    if (user.user_type === 'FARMER') {
-      defaultNotifications.push({
-        id: 1,
-        type: 'login',
-        title: 'Welcome Back!',
-        message: `Welcome to eFarmerConnect, ${user.username}!`,
-        timestamp: new Date(),
-        read: false,
-        icon: '👋'
-      });
+    // Poll for new notifications every 30 seconds
+    const pollInterval = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated, user, fetchNotifications]);
+
+  // Mark notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      // Optimistically update UI
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.id === notificationId ? { ...notif, read: true } : notif
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      // Update on backend
+      await notificationAPI.markAsRead(notificationId);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      // Revert optimistic update on error
+      fetchNotifications();
     }
+  };
 
-    setNotifications(defaultNotifications);
-    setUnreadCount(defaultNotifications.filter(n => !n.read).length);
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      // Optimistically update UI
+      setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+      setUnreadCount(0);
 
-    // Simulate receiving notifications (replace with actual API polling/WebSocket in production)
-    const timer = setInterval(() => {
-      // This would be replaced with actual API calls
-    }, 10000);
+      // Try bulk update on backend
+      try {
+        await notificationAPI.markAllAsRead();
+      } catch (bulkError) {
+        // If bulk endpoint doesn't exist, mark individually
+        const unreadNotifs = notifications.filter(n => !n.read);
+        await Promise.all(
+          unreadNotifs.map(notif => notificationAPI.markAsRead(notif.id))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      // Revert optimistic update on error
+      fetchNotifications();
+    }
+  };
 
-    return () => clearInterval(timer);
-  }, [isAuthenticated, user]);
+  // Delete notification (local only for now, can add API call if needed)
+  const deleteNotification = (notificationId) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    setUnreadCount(prev => {
+      const deletedNotif = notifications.find(n => n.id === notificationId);
+      return deletedNotif && !deletedNotif.read ? Math.max(0, prev - 1) : prev;
+    });
+  };
 
+  // Clear all notifications (local only)
+  const clearAll = () => {
+    setNotifications([]);
+    setUnreadCount(0);
+  };
+
+  // Add a new notification locally (for real-time updates if needed)
   const addNotification = (notification) => {
     const newNotification = {
       id: Date.now(),
       timestamp: new Date(),
       read: false,
+      icon: getNotificationIcon(notification.type || 'ORDER'),
       ...notification,
     };
     setNotifications(prev => [newNotification, ...prev]);
     setUnreadCount(prev => prev + 1);
   };
 
-  const markAsRead = (notificationId) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
-    setUnreadCount(0);
-  };
-
-  const deleteNotification = (notificationId) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-    setUnreadCount(0);
-  };
-
-  // Simulate order notifications (in production, fetch from API)
-  const simulateOrderNotification = (orderData) => {
-    addNotification({
-      type: 'order',
-      title: '📦 New Order Received',
-      message: `You have a new order from ${orderData.customer_name || 'a customer'}`,
-      icon: '📦'
-    });
-  };
-
-  // Simulate payment notifications
-  const simulatePaymentNotification = (paymentData) => {
-    addNotification({
-      type: 'payment',
-      title: '💰 Payment Received',
-      message: `Payment of RWF ${paymentData.amount} received for order #${paymentData.order_id}`,
-      icon: '💰'
-    });
+  // Refresh notifications manually
+  const refreshNotifications = () => {
+    fetchNotifications();
   };
 
   return (
@@ -106,13 +160,13 @@ export const NotificationProvider = ({ children }) => {
       value={{
         notifications,
         unreadCount,
+        loading,
         addNotification,
         markAsRead,
         markAllAsRead,
         deleteNotification,
         clearAll,
-        simulateOrderNotification,
-        simulatePaymentNotification,
+        refreshNotifications,
       }}
     >
       {children}

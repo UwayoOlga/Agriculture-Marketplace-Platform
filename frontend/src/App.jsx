@@ -159,14 +159,15 @@ const AppContent = () => {
             </PrivateRoute>
           }
         />
-        <Route
+        {/* DEPRECATED: Cart requests now part of Orders with PENDING_APPROVAL status */}
+        {/* <Route
           path="farmer/cart-requests"
           element={
             <PrivateRoute>
               <FarmerCartRequests />
             </PrivateRoute>
           }
-        />
+        /> */}
 
         {/* Additional routes can go here (cart, orders, etc.) */}
         <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
