@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Container, 
-  TextField, 
-  Button, 
-  Typography, 
-  Box, 
-  Paper, 
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Paper,
   Alert,
   CircularProgress,
   InputAdornment,
@@ -44,7 +44,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     const { username, password } = formData;
     if (!username || !password) {
       setError('Please fill in all fields');
@@ -54,10 +54,12 @@ const Login = () => {
     setIsLoading(true);
     try {
       const result = await login(username, password);
-      
+
       if (result.success) {
         const role = result.user?.user_type;
-        const destination = role === 'FARMER' ? '/farmer-dashboard' : '/products';
+        let destination = '/products';
+        if (role === 'FARMER') destination = '/farmer-dashboard';
+        else if (role === 'ADMIN') destination = '/admin/dashboard';
         // Use replace instead of navigate to prevent going back to login page
         navigate(destination, { replace: true });
       } else {
@@ -85,13 +87,13 @@ const Login = () => {
           <Typography component="h1" variant="h5" align="center" gutterBottom>
             Sign In to E-Farmer Connect
           </Typography>
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-          
+
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
               margin="normal"

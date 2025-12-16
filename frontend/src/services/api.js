@@ -448,6 +448,8 @@ export const notificationAPI = {
     }
   },
 
+
+
   markAllAsRead: async () => {
     try {
       // If backend supports bulk update, use that endpoint
@@ -457,6 +459,21 @@ export const notificationAPI = {
     } catch (error) {
       // If endpoint doesn't exist, this will fail gracefully
       console.warn('Bulk mark as read not supported:', error);
+      throw error;
+    }
+  }
+};
+
+export const reportAPI = {
+  getSalesReport: async (startDate, endDate) => {
+    try {
+      const response = await api.get('/farmer/sales-report/', {
+        params: { start_date: startDate, end_date: endDate },
+        responseType: 'blob', // Important for PDF download
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch sales report:', error);
       throw error;
     }
   }

@@ -21,9 +21,9 @@ import {
   Grid
 } from '@mui/material';
 
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+import api, { reportAPI } from '../services/api';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
@@ -311,6 +311,30 @@ const FarmerDashboard = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
               <Typography variant="h6">Your Products</Typography>
               <Box display="flex" gap={1}>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<DownloadIcon />}
+                  onClick={async () => {
+                    try {
+                      const blob = await reportAPI.getSalesReport();
+                      // Create download link
+                      const url = window.URL.createObjectURL(new Blob([blob]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', 'sales_report.pdf');
+                      document.body.appendChild(link);
+                      link.click();
+                      link.parentNode.removeChild(link);
+                      enqueueSnackbar('Report downloaded successfully', { variant: 'success' });
+                    } catch (error) {
+                      console.error('Download failed', error);
+                      enqueueSnackbar('Failed to download report', { variant: 'error' });
+                    }
+                  }}
+                >
+                  Download Report
+                </Button>
                 <Button
                   variant="outlined"
                   color="primary"

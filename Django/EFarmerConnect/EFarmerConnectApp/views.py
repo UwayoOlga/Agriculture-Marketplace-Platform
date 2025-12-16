@@ -1,12 +1,13 @@
 from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from django.db import transaction
 from .models import (
@@ -931,92 +932,106 @@ class SalesReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Only farmers can generate reports
-        if getattr(request.user, 'user_type', None) != 'FARMER':
-            return Response({'error': 'Only farmers can generate sales reports.'}, status=status.HTTP_403_FORBIDDEN)
-
-        # Accept optional start_date and end_date as YYYY-MM-DD
-        start_date_str = request.query_params.get('start_date')
-        end_date_str = request.query_params.get('end_date')
-
         try:
-            if start_date_str:
-                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            # Only farmers and admins can generate reports
+            user_type = getattr(request.user, 'user_type', None)
+            if user_type not in ['FARMER', 'ADMIN']:
+                return Response({'error': 'Only farmers and admins can generate sales reports.'}, status=status.HTTP_403_FORBIDDEN)
+
+            # Accept optional start_date and end_date as YYYY-MM-DD
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+
+            try:
+                if start_date_str:
+                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                else:
+                    start_date = (datetime.utcnow() - timedelta(days=30)).date()
+                if end_date_str:
+                    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                else:
+                    end_date = datetime.utcnow().date()
+            except (ValueError, TypeError):
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Query order items
+            from django.db.models import Sum, F
+            
+            items = OrderItem.objects.filter(
+                order__order_date__date__gte=start_date,
+                order__order_date__date__lte=end_date,
+                order__status__in=['PAID', 'DELIVERED'] # Consider only completed sales
+            )
+
+            # Filter by farmer if user is a farmer
+            if user_type == 'FARMER':
+                items = items.filter(product__farmer=request.user)
+
+            items = items.select_related('order', 'product').order_by('order__order_date')
+
+            # Calculate total using database aggregation for efficiency
+            total_sales = items.aggregate(
+                total=Sum(F('quantity') * F('price_at_time'))
+            )['total'] or Decimal('0.00')
+
+            # Build table rows
+            rows = []
+            for it in items:
+                order_date = it.order.order_date.date().isoformat()
+                order_id = it.order.id
+                product_name = it.product.name or 'Unnamed'
+                qty = it.quantity
+                unit_price = it.price_at_time
+                subtotal = Decimal(qty) * unit_price
+                rows.append([order_date, str(order_id), product_name, str(qty), f"{unit_price:.2f}", f"{subtotal:.2f}"])
+
+            # Prepare PDF
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4)
+            styles = getSampleStyleSheet()
+            elements = []
+
+            title = Paragraph(f"Sales Report for {request.user.username}", styles['Title'])
+            period = Paragraph(f"Period: {start_date.isoformat()} to {end_date.isoformat()}", styles['Normal'])
+            elements.append(title)
+            elements.append(Spacer(1, 12))
+            elements.append(period)
+            elements.append(Spacer(1, 12))
+
+            if rows:
+                table_data = [["Date", "Order #", "Product", "Qty", "Unit Price", "Subtotal"]] + rows
             else:
-                start_date = (datetime.utcnow() - timedelta(days=30)).date()
-            if end_date_str:
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            else:
-                end_date = datetime.utcnow().date()
-        except (ValueError, TypeError):
-            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+                table_data = [["Message"], ["No sales found for the selected period."]]
 
-        # Query order items for products that belong to this farmer within date range
-        from django.db.models import Sum, F
-        items = OrderItem.objects.filter(
-            product__farmer=request.user,
-            order__order_date__date__gte=start_date,
-            order__order_date__date__lte=end_date,
-            order__status__in=['PAID', 'DELIVERED'] # Consider only completed sales
-        ).select_related('order', 'product').order_by('order__order_date')
+            table = Table(table_data, repeatRows=1)
+            table_style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (3, 0), (4, -1), 'RIGHT'),
+            ])
+            table.setStyle(table_style)
+            elements.append(table)
+            elements.append(Spacer(1, 12))
 
-        # Calculate total using database aggregation for efficiency
-        total_sales = items.aggregate(
-            total=Sum(F('quantity') * F('price_at_time'))
-        )['total'] or Decimal('0.00')
+            total_paragraph = Paragraph(f"<b>Total sales: RWF {total_sales:.2f}</b>", styles['Heading2'])
+            elements.append(total_paragraph)
 
-        # Build table rows
-        rows = []
-        for it in items:
-            order_date = it.order.order_date.date().isoformat()
-            order_id = it.order.id
-            product_name = it.product.name or 'Unnamed'
-            qty = it.quantity
-            unit_price = it.price_at_time
-            subtotal = Decimal(qty) * unit_price
-            rows.append([order_date, str(order_id), product_name, str(qty), f"{unit_price:.2f}", f"{subtotal:.2f}"])
+            # Build PDF
+            doc.build(elements)
+            buffer.seek(0)
 
-        # Prepare PDF
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        styles = getSampleStyleSheet()
-        elements = []
+            filename = f"sales_report_{request.user.username}_{start_date.isoformat()}_{end_date.isoformat()}.pdf"
+            response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
 
-        title = Paragraph(f"Sales Report for {request.user.username}", styles['Title'])
-        period = Paragraph(f"Period: {start_date.isoformat()} to {end_date.isoformat()}", styles['Normal'])
-        elements.append(title)
-        elements.append(Spacer(1, 12))
-        elements.append(period)
-        elements.append(Spacer(1, 12))
-
-        if rows:
-            table_data = [["Date", "Order #", "Product", "Qty", "Unit Price", "Subtotal"]] + rows
-        else:
-            table_data = [["Message"], ["No sales found for the selected period."]]
-
-        table = Table(table_data, repeatRows=1)
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('ALIGN', (3, 0), (4, -1), 'RIGHT'),
-        ])
-        table.setStyle(table_style)
-        elements.append(table)
-        elements.append(Spacer(1, 12))
-
-        total_paragraph = Paragraph(f"<b>Total sales: RWF {total_sales:.2f}</b>", styles['Heading2'])
-        elements.append(total_paragraph)
-
-        # Build PDF
-        doc.build(elements)
-        buffer.seek(0)
-
-        filename = f"sales_report_{request.user.username}_{start_date.isoformat()}_{end_date.isoformat()}.pdf"
-        response = Response(buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
+        except Exception as e:
+            # Keep error handling but log it properly or return a DRF error response for non-PDF errors
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 # Cart Request Management (Pre-approval system)
 class FarmerCartRequestsView(APIView):
@@ -1238,3 +1253,100 @@ class ReceiptView(APIView):
         return response
 
 
+
+# Admin Dashboard Stats
+class AdminDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != 'ADMIN':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        total_users = User.objects.count()
+        total_orders = Order.objects.count()
+        revenue = Order.objects.filter(status__in=['PAID', 'COMPLETED']).aggregate(total=Sum('total_amount'))['total'] or 0
+        pending_requests = Order.objects.filter(status='PENDING_APPROVAL').count()
+
+        recent_orders_qs = Order.objects.all().order_by('-order_date')[:5]
+        recent_orders_data = []
+        for order in recent_orders_qs:
+            recent_orders_data.append({
+                'id': order.id,
+                'customer_name': order.buyer.get_full_name() or order.buyer.username,
+                'date': order.order_date,
+                'amount': order.total_amount,
+                'status': order.status
+            })
+
+        return Response({
+            'users': total_users,
+            'orders': total_orders,
+            'revenue': revenue,
+            'pending': pending_requests,
+            'recent_orders': recent_orders_data
+        })
+
+# Admin User Management
+class AdminUserListView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'ADMIN':
+            return User.objects.all().order_by('-date_joined')
+        return User.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        if request.user.user_type != 'ADMIN':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        return super().create(request, *args, **kwargs)
+
+# Admin Farmer List
+class AdminFarmerListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'ADMIN':
+            return User.objects.filter(user_type='FARMER').order_by('-date_joined')
+        return User.objects.none()
+
+# Admin Product List and Management
+class AdminProductListView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductSerializer
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'ADMIN':
+            return Product.objects.all().order_by('-created_at')
+        return Product.objects.none()
+
+# Admin Order List
+class AdminOrderListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderSerializer
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'ADMIN':
+            return Order.objects.all().order_by('-order_date')
+        return Order.objects.none()
+
+# Admin Dashboard Stats
+class AdminDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if getattr(request.user, 'user_type', None) != 'ADMIN':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response({
+            'total_users': User.objects.count(),
+            'total_farmers': User.objects.filter(user_type='FARMER').count(),
+            'total_products': Product.objects.count(),
+            'total_orders': Order.objects.count(),
+            'total_sales': Order.objects.filter(status='PAID').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        })

@@ -29,7 +29,9 @@ from EFarmerConnectApp.views import (
     OrderView, PaymentView, ReviewView, ForumPostView,
     CommentView, WeatherAlertView, AgronomicAdviceView,
     MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView,
-    LikePostView, ForumPostDetailView
+    LikePostView, ForumPostDetailView,
+    AdminDashboardStatsView, AdminUserListView, AdminFarmerListView,
+    AdminProductListView, AdminOrderListView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
 from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView, FarmerCartRequestsView, FarmerCartRequestActionView, ReceiptView
@@ -132,6 +134,13 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/', NotificationView.as_view(), name='notification_detail'),
     path('api/notifications/mark-all-read/', NotificationView.as_view(), name='notifications_mark_all_read'),
     path('api/notifications/sms/', SMSNotificationView.as_view(), name='sms_notifications'),
+    # Admin Dashboard Stats
+    path('api/admin/dashboard-stats/', AdminDashboardStatsView.as_view(), name='admin_dashboard_stats'),
+    # Admin User Management
+    path('api/admin/users/', AdminUserListView.as_view(), name='admin_user_list'),
+    path('api/admin/farmers/', AdminFarmerListView.as_view(), name='admin_farmer_list'),
+    path('api/admin/products/', AdminProductListView.as_view(), name='admin_product_list'),
+    path('api/admin/orders/', AdminOrderListView.as_view(), name='admin_order_list'),
     path('api/', include(router.urls)),
 ]
 
