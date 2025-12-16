@@ -3,8 +3,9 @@ from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from rest_framework import status, viewsets, generics
+from rest_framework import status, viewsets, generics, filters
 from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Q, Sum
@@ -1332,20 +1333,98 @@ class AdminDashboardStatsView(APIView):
         })
 
 # Admin User Management
+# Admin User Management
 class AdminUserListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     pagination_class = PageNumberPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'id']
+    filterset_fields = ['user_type', 'is_verified', 'is_active']
+    ordering_fields = ['date_joined', 'last_login', 'username']
+    ordering = ['-date_joined']
 
     def get_queryset(self):
         if self.request.user.user_type == 'ADMIN':
-            return User.objects.all().order_by('-date_joined')
+            return User.objects.all()
         return User.objects.none()
 
     def create(self, request, *args, **kwargs):
         if request.user.user_type != 'ADMIN':
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
+
+class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'ADMIN':
+            return User.objects.all()
+        return User.objects.none()
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except Exception as e:
+            # If deletion fails (e.g. protected foreign keys), fall back to deactivation
+            # Check if it is a ProtectedError
+            if 'Constraint' in str(e) or 'Protected' in str(e) or 'Integrity' in str(e):
+                 # Actually, better to just deactivate if we can't delete
+                 # But standard DRF won't let us return a custom response easily from here without overriding destroy.
+                 pass
+            # Re-raise to let DRF handle it, or we override destroy() method instead of perform_destroy
+            raise e
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            # Fallback: Soft delete if hard delete fails
+            instance.is_active = False
+            instance.save()
+            return Response({'message': 'User could not be permanently deleted due to associated data. Account has been deactivated instead.'}, status=status.HTTP_200_OK)
+
+class AdminUserActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.user_type != 'ADMIN':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = get_object_or_404(User, pk=pk)
+        action = request.data.get('action')
+        
+        if action == 'suspend':
+            user.is_active = False
+            user.save()
+            return Response({'status': 'User suspended'})
+        elif action == 'activate':
+            user.is_active = True
+            user.save()
+            return Response({'status': 'User activated'})
+        elif action == 'verify':
+            user.is_verified = True
+            user.save()
+            return Response({'status': 'User verified'})
+        elif action == 'reset_password':
+             # Generate a new random password
+            new_password = User.objects.make_random_password()
+            user.set_password(new_password)
+            user.save()
+            # In a real app, send email here
+            return Response({'status': 'Password reset', 'new_password': new_password})
+        elif action == 'change_role':
+            new_role = request.data.get('role')
+            if new_role not in ['ADMIN', 'FARMER', 'BUYER']:
+                return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+            user.user_type = new_role
+            user.save()
+            return Response({'status': 'Role updated'})
+            
+        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
 # Admin Farmer List
 class AdminFarmerListView(generics.ListAPIView):

@@ -116,7 +116,13 @@ const AdminDashboard = () => {
                 <Typography variant="h4" fontWeight={700} color="#1a1f2c">
                     Dashboard Overview
                 </Typography>
-                <Button variant="contained" color="primary">Generare Report</Button>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => navigate('/sales-report')}
+                >
+                    Generate Report
+                </Button>
             </Box>
 
             {/* Metrics Grid */}
@@ -227,16 +233,40 @@ const AdminDashboard = () => {
                     <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
                         <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>Quick Actions</Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <Button variant="outlined" fullWidth color="primary" sx={{ justifyContent: 'flex-start', py: 1.5 }}>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                color="primary"
+                                sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                                onClick={() => navigate('/admin/users')}
+                            >
                                 Add New User
                             </Button>
-                            <Button variant="outlined" fullWidth color="success" sx={{ justifyContent: 'flex-start', py: 1.5 }}>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                color="success"
+                                sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                                onClick={() => navigate('/admin/farmers')}
+                            >
                                 Approve Farmer
                             </Button>
-                            <Button variant="outlined" fullWidth color="warning" sx={{ justifyContent: 'flex-start', py: 1.5 }}>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                color="warning"
+                                sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                                onClick={() => navigate('/admin/products')}
+                            >
                                 Review Products
                             </Button>
-                            <Button variant="outlined" fullWidth color="info" sx={{ justifyContent: 'flex-start', py: 1.5 }}>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                color="info"
+                                sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                                onClick={() => navigate('/api/profile')}
+                            >
                                 System Settings
                             </Button>
                         </Box>

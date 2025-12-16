@@ -30,8 +30,9 @@ from EFarmerConnectApp.views import (
     CommentView, WeatherAlertView, AgronomicAdviceView,
     MarketPriceView, DeliveryLogisticsView, NotificationView, SMSNotificationView,
     LikePostView, ForumPostDetailView,
-    AdminDashboardStatsView, AdminUserListView, AdminFarmerListView,
-    AdminProductListView, AdminOrderListView
+    AdminDashboardStatsView,
+    AdminUserListView, AdminUserDetailView, AdminUserActionView,
+    AdminFarmerListView, AdminProductListView, AdminOrderListView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
 from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView, FarmerCartRequestsView, FarmerCartRequestActionView, ReceiptView
@@ -138,6 +139,8 @@ urlpatterns = [
     path('api/admin/dashboard-stats/', AdminDashboardStatsView.as_view(), name='admin_dashboard_stats'),
     # Admin User Management
     path('api/admin/users/', AdminUserListView.as_view(), name='admin_user_list'),
+    path('api/admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin_user_detail'),
+    path('api/admin/users/<int:pk>/action/', AdminUserActionView.as_view(), name='admin_user_action'),
     path('api/admin/farmers/', AdminFarmerListView.as_view(), name='admin_farmer_list'),
     path('api/admin/products/', AdminProductListView.as_view(), name='admin_product_list'),
     path('api/admin/orders/', AdminOrderListView.as_view(), name='admin_order_list'),
