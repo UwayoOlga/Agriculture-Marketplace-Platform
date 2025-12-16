@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  Card, 
-  CardContent, 
+import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
   TextField,
   FormControl,
   InputLabel,
@@ -129,7 +129,7 @@ const FarmerDashboard = () => {
       enqueueSnackbar('Only farmers can create products.', { variant: 'warning' });
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
       const category =
@@ -156,7 +156,7 @@ const FarmerDashboard = () => {
       await api.post('/products/create/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
+
       // Reset form
       setProductData({
         name: '',
@@ -167,7 +167,7 @@ const FarmerDashboard = () => {
         category: '',
         is_organic: false
       });
-      
+
       setShowProductForm(false);
       enqueueSnackbar('Product added successfully!', { variant: 'success' });
       // Refresh list
@@ -182,7 +182,7 @@ const FarmerDashboard = () => {
       // Dispatch a global event so other pages (e.g. Products) can refresh
       try {
         window.dispatchEvent(new CustomEvent('product:created'));
-      } catch (e) {}
+      } catch (e) { }
     } catch (error) {
       console.error('Error adding product:', error);
       enqueueSnackbar('Failed to add product. Please try again.', { variant: 'error' });
@@ -268,9 +268,9 @@ const FarmerDashboard = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Welcome, {user?.username || 'Farmer'}!
+        Welcome, {user?.first_name || user?.username || 'Farmer'}!
       </Typography>
-      
+
       <Grid container spacing={3}>
         {/* Stats Cards */}
         <Grid xs={12} md={4}>
@@ -283,7 +283,7 @@ const FarmerDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid xs={12} md={4}>
           <Card>
             <CardContent>
@@ -294,7 +294,7 @@ const FarmerDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid xs={12} md={4}>
           <Card>
             <CardContent>
@@ -311,23 +311,23 @@ const FarmerDashboard = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
               <Typography variant="h6">Your Products</Typography>
               <Box display="flex" gap={1}>
-                <Button 
+                <Button
                   variant="outlined"
                   color="primary"
                   onClick={() => navigate('/farmer-orders')}
                 >
                   View Orders
                 </Button>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                startIcon={<AddIcon />}
-                onClick={() => setShowProductForm(!showProductForm)}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={() => setShowProductForm(!showProductForm)}
                   disabled={user?.user_type !== 'FARMER'}
-              >
-                {showProductForm ? 'Cancel' : 'Add New Product'}
-              </Button>
-            </Box>
+                >
+                  {showProductForm ? 'Cancel' : 'Add New Product'}
+                </Button>
+              </Box>
             </Box>
 
             {user?.user_type !== 'FARMER' && (
@@ -426,7 +426,7 @@ const FarmerDashboard = () => {
                       margin="normal"
                     />
                   </Grid>
-                  
+
                   <Grid xs={12}>
                     <FormControlLabel
                       control={
@@ -459,13 +459,13 @@ const FarmerDashboard = () => {
                   </Grid>
 
                   <Grid xs={12}>
-                    <Button 
-                      type="submit" 
-                      variant="contained" 
+                    <Button
+                      type="submit"
+                      variant="contained"
                       color="primary"
                       sx={{ mt: 2 }}
                     >
-{isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Add Product'}
+                      {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Add Product'}
                     </Button>
                   </Grid>
 

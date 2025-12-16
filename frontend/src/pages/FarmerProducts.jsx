@@ -183,7 +183,7 @@ const FarmerProducts = () => {
         <Box sx={{ minHeight: '100vh', bgcolor: darkBg, color: textPrimary, py: 4 }}>
             <Container maxWidth="lg">
                 <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ color: textPrimary }}>
-                    Welcome, {user?.username || 'Farmer'}!
+                    Welcome, {user?.first_name || user?.username || 'Farmer'}!
                 </Typography>
 
                 {/* Stats Cards */}
