@@ -330,3 +330,29 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.get_type_display()} for {self.user.username}"
+
+class CartRequest(models.Model):
+    """
+    Represents a request from a buyer to add an item to cart.
+    Farmer must approve before buyer can proceed to checkout.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Review'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    ]
+    
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cart_requests')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.buyer.username} requests {self.quantity}x {self.product.name} - {self.status}"
+

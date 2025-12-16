@@ -218,7 +218,7 @@ const FarmerProducts = () => {
                                 variant="outlined"
                                 color="success"
                                 sx={{ mr: 2, borderColor: '#4caf50', color: '#4caf50' }}
-                                onClick={() => navigate('/farmer/orders')}
+                                onClick={() => navigate('/farmer/cart-requests')}
                             >
                                 View Orders
                             </Button>

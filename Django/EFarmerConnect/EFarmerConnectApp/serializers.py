@@ -5,7 +5,7 @@ from .models import (
     Product, User, Category, ProductImage, Cart, CartItem,
     Order, OrderItem, Payment, Review, ForumPost, Comment,
     WeatherAlert, AgronomicAdvice, MarketPrice, DeliveryLogistics, 
-    Notification, SMSNotification, PasswordResetToken
+    Notification, SMSNotification, PasswordResetToken, CartRequest
 )
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -190,3 +190,12 @@ class SMSNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = SMSNotification
         fields = '__all__'
+
+class CartRequestSerializer(serializers.ModelSerializer):
+    product_details = ProductSerializer(source='product', read_only=True)
+    buyer_details = UserSerializer(source='buyer', read_only=True)
+    
+    class Meta:
+        model = CartRequest
+        fields = '__all__'
+

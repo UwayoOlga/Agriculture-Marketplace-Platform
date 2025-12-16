@@ -32,7 +32,7 @@ from EFarmerConnectApp.views import (
     LikePostView, ForumPostDetailView
 )
 from EFarmerConnectApp.views_season import CropCalendarView
-from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView
+from EFarmerConnectApp.views import FarmerOrderListView, FarmerOrderStatusView, FarmerCartRequestsView, FarmerCartRequestActionView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -104,6 +104,11 @@ urlpatterns = [
     path('api/farmer/orders/', FarmerOrderListView.as_view(), name='farmer_orders'),
     path('api/farmer/orders/<int:order_id>/status/', FarmerOrderStatusView.as_view(), name='farmer_order_status'),
     path('api/farmer/sales-report/', SalesReportView.as_view(), name='sales_report'),
+    
+    # Farmer cart request management (pre-approval system)
+    path('api/farmer/cart-requests/', FarmerCartRequestsView.as_view(), name='farmer_cart_requests'),
+    path('api/farmer/cart-requests/<int:request_id>/action/', FarmerCartRequestActionView.as_view(), name='farmer_cart_request_action'),
+
     
     # Community & Forum endpoints
     path('api/forum/posts/', ForumPostView.as_view(), name='forum_posts'),

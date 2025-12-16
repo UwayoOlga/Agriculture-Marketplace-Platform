@@ -9,7 +9,7 @@ export const CartProvider = ({ children }) => {
     const savedCart = typeof window !== 'undefined' ? localStorage.getItem('cart') : null;
     return savedCart ? JSON.parse(savedCart) : [];
   });
-  
+
   const { enqueueSnackbar } = useSnackbar();
 
   // Save cart to localStorage whenever it changes
@@ -19,11 +19,12 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart]);
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = async (product, quantity = 1) => {
+    // Update local cart first for immediate UI feedback
     setCart(prevCart => {
       // Check if product already exists in cart
       const existingItem = prevCart.find(item => item.id === product.id);
-      
+
       if (existingItem) {
         // Update quantity if product exists
         return prevCart.map(item =>
@@ -32,11 +33,23 @@ export const CartProvider = ({ children }) => {
             : item
         );
       }
-      
+
       // Add new product to cart
       return [...prevCart, { ...product, quantity }];
     });
-    
+
+    // Also send to backend to create CartRequest for farmer approval
+    try {
+      const apiClient = (await import('../api/apiClient')).default;
+      await apiClient.post('/cart/items/', {
+        product: product.id,
+        quantity: quantity
+      });
+    } catch (error) {
+      console.error('Failed to create cart request:', error);
+      // Still show success to user since local cart was updated
+    }
+
     enqueueSnackbar(`${product.name} added to cart`, { variant: 'success' });
   };
 
@@ -50,7 +63,7 @@ export const CartProvider = ({ children }) => {
       removeFromCart(productId);
       return;
     }
-    
+
     setCart(prevCart =>
       prevCart.map(item =>
         item.id === productId ? { ...item, quantity: newQuantity } : item
@@ -64,7 +77,7 @@ export const CartProvider = ({ children }) => {
 
   // Calculate total items in cart
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
-  
+
   // Calculate total price
   const total = cart.reduce(
     (sum, item) => sum + (parseFloat(item.price) * item.quantity),

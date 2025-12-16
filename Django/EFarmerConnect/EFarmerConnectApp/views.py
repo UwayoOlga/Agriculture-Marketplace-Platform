@@ -353,13 +353,21 @@ class CartItemView(APIView):
         if serializer.is_valid():
             cart_item = serializer.save()
             
+            # Create CartRequest for farmer approval
+            from .models import CartRequest
+            CartRequest.objects.create(
+                buyer=request.user,
+                product=cart_item.product,
+                quantity=cart_item.quantity
+            )
+            
             # Notify Farmer that their product was added to a cart
             try:
                 Notification.objects.create(
                     user=cart_item.product.farmer,
-                    type='SYSTEM',
-                    title='Item Added to Cart',
-                    message=f"A buyer added '{cart_item.product.name}' to their cart."
+                    type='ORDER',
+                    title='New Cart Request',
+                    message=f"{request.user.username} wants to buy {cart_item.quantity}x {cart_item.product.name}. Please review in 'View Orders'."
                 )
             except Exception:
                 pass
@@ -957,3 +965,80 @@ class SalesReportView(APIView):
         response = Response(buffer.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+
+# Cart Request Management (Pre-approval system)
+class FarmerCartRequestsView(APIView):
+    """
+    Farmer view to see all pending cart requests for their products.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can view cart requests.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .models import CartRequest
+        from .serializers import CartRequestSerializer
+        
+        # Get all cart requests for this farmer's products
+        requests = CartRequest.objects.filter(
+            product__farmer=request.user
+        ).select_related('buyer', 'product').order_by('-created_at')
+        
+        serializer = CartRequestSerializer(requests, many=True)
+        return Response(serializer.data)
+
+class FarmerCartRequestActionView(APIView):
+    """
+    Farmer action to approve or reject a cart request.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, request_id):
+        if getattr(request.user, 'user_type', None) != 'FARMER':
+            return Response({'error': 'Only farmers can manage cart requests.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .models import CartRequest
+        
+        cart_request = get_object_or_404(
+            CartRequest, 
+            id=request_id, 
+            product__farmer=request.user
+        )
+        
+        action = request.data.get('action')  # 'approve' or 'reject'
+        
+        if action == 'approve':
+            cart_request.status = 'APPROVED'
+            cart_request.reviewed_at = timezone.now()
+            cart_request.save()
+            
+            # Notify buyer
+            Notification.objects.create(
+                user=cart_request.buyer,
+                type='ORDER',
+                title='Cart Item Approved',
+                message=f'Your request for {cart_request.product.name} has been approved! You can now proceed to checkout.'
+            )
+            
+            return Response({'detail': 'Cart request approved.', 'status': cart_request.status})
+            
+        elif action == 'reject':
+            cart_request.status = 'REJECTED'
+            cart_request.rejection_reason = request.data.get('reason', '')
+            cart_request.reviewed_at = timezone.now()
+            cart_request.save()
+            
+            # Notify buyer
+            Notification.objects.create(
+                user=cart_request.buyer,
+                type='ORDER',
+                title='Cart Item Rejected',
+                message=f'Your request for {cart_request.product.name} was rejected. Reason: {cart_request.rejection_reason or "Not specified"}'
+            )
+            
+            return Response({'detail': 'Cart request rejected.', 'status': cart_request.status})
+        
+        else:
+            return Response({'error': 'Invalid action. Use "approve" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
+
