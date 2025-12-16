@@ -331,7 +331,7 @@ const AdminUsers = () => {
                     <ListItemIcon>
                         {selectedUser?.is_active ? <LockIcon fontSize="small" color="error" /> : <LockOpenIcon fontSize="small" color="success" />}
                     </ListItemIcon>
-                    {selectedUser?.is_active ? 'Suspend User' : 'Activate User'}
+                    {selectedUser?.is_active ? 'Deactivate User' : 'Activate User'}
                 </MenuItem>
                 <MenuItem onClick={() => handleAction('reset_password')}>
                     <ListItemIcon><KeyIcon fontSize="small" /></ListItemIcon>

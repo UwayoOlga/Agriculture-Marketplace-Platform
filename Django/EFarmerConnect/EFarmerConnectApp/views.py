@@ -1403,6 +1403,8 @@ class AdminUserActionView(APIView):
             return Response({'status': 'User suspended'})
         elif action == 'activate':
             user.is_active = True
+            if user.user_type == 'FARMER':
+                user.is_verified = True
             user.save()
             return Response({'status': 'User activated'})
         elif action == 'verify':
@@ -1458,5 +1460,10 @@ class AdminOrderListView(generics.ListAPIView):
         if self.request.user.user_type == 'ADMIN':
             return Order.objects.all().order_by('-order_date')
         return Order.objects.none()
-
+from .views_analytics import (
+    SalesAnalyticsView, 
+    UserAnalyticsView, 
+    ProductAnalyticsView, 
+    CustomReportView
+)
 
