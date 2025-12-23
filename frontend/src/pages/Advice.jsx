@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Container,
     Typography,
@@ -176,7 +176,7 @@ const Advice = () => {
         target_crop: '',
     });
 
-    const fetchAdvice = async () => {
+    const fetchAdvice = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -191,11 +191,11 @@ const Advice = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters]);
 
     useEffect(() => {
         fetchAdvice();
-    }, [filters]);
+    }, [fetchAdvice]);
 
     const handleFilterChange = (field) => (event) => {
         setFilters(prev => ({ ...prev, [field]: event.target.value }));

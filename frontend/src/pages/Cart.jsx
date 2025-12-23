@@ -24,7 +24,7 @@ import api from '../services/api';
 import { useSnackbar } from 'notistack';
 
 const Cart = () => {
-    const { cart, updateQuantity, removeFromCart, total, itemCount } = useCart();
+    const { cart, updateQuantity, removeFromCart, itemCount } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();

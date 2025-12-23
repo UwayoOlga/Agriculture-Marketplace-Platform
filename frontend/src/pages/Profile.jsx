@@ -9,6 +9,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line
       setForm({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
@@ -30,7 +31,7 @@ const Profile = () => {
       const res = await updateProfile(form);
       if (res.success) setStatus({ type: 'success', message: 'Profile updated' });
       else setStatus({ type: 'error', message: res.error || 'Update failed' });
-    } catch (err) {
+    } catch {
       setStatus({ type: 'error', message: 'Unexpected error' });
     }
   };

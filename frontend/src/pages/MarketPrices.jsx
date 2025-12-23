@@ -44,10 +44,7 @@ import img4 from '../assets/images/4.jpg';
 import img5 from '../assets/images/5.jpg';
 // img6 removed due to missing file
 import img7 from '../assets/images/RWANDAN_Fresh_Passionfruit.jpg';
-
-const MarketPrices = () => {
-    // Expanded static data to match the user's requested table structure
-    // Schema: Product Name, Name En, Market, Date, Farmgate, Wholesale, Retail, Province, District
+const MarketPrices = () => { 
     const marketData = [
         { id: 1, name_rw: 'Ibigori', name_en: 'Maize', market: 'Kimironko', date: '2024-12-14', farmgate: 380, wholesale: 450, retail: 700, province: 'Kigali City', district: 'Gasabo', image: img1, trend: 'UP' },
         { id: 2, name_rw: 'Ibirayi (Kinigi)', name_en: 'Irish Potatoes', market: 'Kinigi Market', date: '2024-12-14', farmgate: 450, wholesale: 600, retail: 780, province: 'Northern', district: 'Musanze', image: img2, trend: 'UP' },

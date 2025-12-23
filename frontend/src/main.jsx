@@ -33,9 +33,9 @@ window.addEventListener('unhandledrejection', (event) => {
     localStorage.setItem('__unhandled_rejections__', JSON.stringify(prev.slice(-20)));
     // Prevent the browser from logging the rejection again as 'Uncaught (in promise)'
     if (typeof event.preventDefault === 'function') {
-      try { event.preventDefault(); } catch (e) {}
+      try { event.preventDefault(); } catch { /* ignore */ }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 });
@@ -58,9 +58,9 @@ window.addEventListener('error', (event) => {
     localStorage.setItem('__global_errors__', JSON.stringify(prev.slice(-50)));
     // Prevent default browser handling which may also log the error
     if (typeof event.preventDefault === 'function') {
-      try { event.preventDefault(); } catch (e) {}
+      try { event.preventDefault(); } catch { /* ignore */ }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 });

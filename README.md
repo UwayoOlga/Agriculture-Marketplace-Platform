@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 # EFarmerConnect - Agriculture Marketplace Platform
+=======
+# UbuhinziLink - Agriculture Marketplace Platform
+>>>>>>> Stashed changes
 
 **EFarmerConnect** is a comprehensive platform designed to connect farmers in Rwanda with buyers, ensuring fair pricing, market access, and efficient supply chain management. By integrating technology, this platform addresses critical issues such as limited market access, unpredictable pricing, and supply chain inefficiencies.
 

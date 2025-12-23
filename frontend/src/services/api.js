@@ -89,8 +89,8 @@ const setAuthHeader = (token) => {
       storage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       delete api.defaults.headers.common['Authorization'];
     }
-  } catch (e) {
-    console.error('Failed to set auth header:', e);
+  } catch {
+    console.error('Failed to set auth header');
   }
 };
 
@@ -105,7 +105,7 @@ const isTokenExpired = (token) => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.exp * 1000 < Date.now() + TOKEN_REFRESH_MARGIN * 1000;
-  } catch (e) {
+  } catch {
     return true;
   }
 };
