@@ -1,4 +1,4 @@
-# EFarmerConnect - Agriculture Marketplace Platform
+# EFarmerConnect - Rwanda's Agriculture Marketplace Platform
 
 **EFarmerConnect** connects farmers in Rwanda with buyers, ensuring fair pricing and efficient supply chain management.
 
